@@ -139,8 +139,8 @@
                         }
                     } else if (file.name === 'image.jpeg') {
                         imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`;
-                    } else if (file.name === 'Lang' && file.type === 'dir') {
-                        const langPath = `${modPath}/Lang`;
+                    } else if (file.name === 'lang' && file.type === 'dir') {
+                        const langPath = `${modPath}/lang`;
                         const langContents = await fetchRepoContents(langPath);
                         if (langContents && Array.isArray(langContents)) {
                             langFiles = langContents.map(f => ({
