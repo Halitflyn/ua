@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Українські переклади модів</title>
+    <link rel="icon" href="data:,">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -25,7 +26,7 @@
             border-radius: 8px;
             margin: 10px;
             padding: 15px;
-            width: 300px;
+            width: 250px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         .mod-card img {
@@ -190,8 +191,8 @@
                         }
                     } else if (file.name === 'image.jpeg') {
                         imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`;
-                    } else if (file.name === 'Lang' && file.type === 'dir') {
-                        const langPath = `${modPath}/Lang`;
+                    } else if (file.name === 'lang' && file.type === 'dir') {
+                        const langPath = `${modPath}/lang`;
                         const langContents = await fetchRepoContents(langPath);
                         if (langContents && Array.isArray(langContents)) {
                             langFiles = langContents.map(f => ({
@@ -232,8 +233,11 @@
                         <p><a href="${modrinthLink}" target="_blank">Modrinth сторінка</a></p>
                         <p>Версія: ${versionText}</p>
                         <p>(${allLoaders})</p>
-                        <button onclick='showSelectModal(${JSON.stringify(modJson)}, ${JSON.stringify(langFiles)}, "${name}")'>Вибрати переклад</button>
                     `;
+                    const selectButton = document.createElement('button');
+                    selectButton.textContent = 'Вибрати переклад';
+                    selectButton.addEventListener('click', () => showSelectModal(modJson, langFiles, name));
+                    card.appendChild(selectButton);
 
                     modListDiv.appendChild(card);
                 }
@@ -244,18 +248,26 @@
             const modal = document.getElementById('select-modal');
             const list = document.getElementById('select-list');
             list.innerHTML = '';
+            let hasItems = false;
             modJson.forEach(version => {
                 const langFile = langFiles.find(l => l.author.toLowerCase() === version.author.toLowerCase());
                 if (langFile) {
+                    hasItems = true;
                     const item = document.createElement('div');
                     item.innerHTML = `
                         <p>Версія: ${version.version} (${version.loader})</p>
                         <p>Автор: ${version.author}</p>
-                        <button onclick="downloadBoth('${version.link}', '${langFile.url}', '${modName}')">Завантажити</button>
                     `;
+                    const downloadButton = document.createElement('button');
+                    downloadButton.textContent = 'Завантажити';
+                    downloadButton.addEventListener('click', () => downloadBoth(version.link, langFile.url, modName));
+                    item.appendChild(downloadButton);
                     list.appendChild(item);
                 }
             });
+            if (!hasItems) {
+                list.innerHTML = '<p>Немає доступних перекладів.</p>';
+            }
             modal.style.display = 'block';
         }
 
