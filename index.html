@@ -2,193 +2,234 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>Моди з перекладом</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Українські переклади модів</title>
+  <link rel="icon" href="data:,">
   <style>
+    :root {
+      --bg: #f4f4f4;
+      --text: #333;
+      --card-bg: #fff;
+    }
+    body.dark {
+      --bg: #1e1e1e;
+      --text: #f1f1f1;
+      --card-bg: #2b2b2b;
+    }
     body {
       font-family: Arial, sans-serif;
       margin: 0;
-      background: #f5f5f5;
-      color: #222;
+      padding: 0 0 60px;
+      background-color: var(--bg);
+      color: var(--text);
+      transition: background 0.3s, color 0.3s;
     }
-
     header {
-      padding: 1rem;
-      text-align: center;
-      background: #2c3e50;
-      color: #fff;
-    }
-
-    #filters {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: var(--bg);
+      padding: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       display: flex;
-      gap: 1rem;
-      justify-content: center;
-      padding: 1rem;
       flex-wrap: wrap;
-      background: #ecf0f1;
+      justify-content: center;
+      gap: 10px;
     }
-
-    #mods {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-      padding: 20px;
-    }
-
-    .mod-card {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .mod-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-    }
-
-    .mod-card img {
+    h1 {
       width: 100%;
-      height: 150px;
-      object-fit: cover;
+      text-align: center;
+      margin: 10px 0;
     }
-
-    .info {
-      padding: 12px;
-      flex-grow: 1;
+    input, select {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
     }
-
-    .info h3 {
-      margin: 0 0 8px;
-      font-size: 1.1rem;
-    }
-
-    .buttons {
+    .mod-list {
       display: flex;
-      gap: 8px;
-      padding: 12px;
-      justify-content: center;
       flex-wrap: wrap;
+      justify-content: center;
+      padding: 20px;
+      gap: 15px;
     }
-
-    .buttons button {
-      padding: 8px 12px;
-      border: none;
+    .mod-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 15px;
+      width: 240px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      transition: transform 0.2s, opacity 0.3s;
+      animation: fadeIn 0.4s ease;
+    }
+    .mod-card.hidden {
+      display: none;
+    }
+    .mod-card:hover {
+      transform: translateY(-5px);
+    }
+    .mod-card img {
+      width: 70%;
+      display: block;
+      margin: 0 auto;
       border-radius: 8px;
-      background: #3498db;
-      color: white;
+    }
+    button {
+      background: #4CAF50;
+      border: none;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
       cursor: pointer;
+      margin-top: 8px;
       transition: background 0.2s;
     }
-
-    .buttons button:hover {
-      background: #2980b9;
+    button:hover {
+      background: #3c9642;
+    }
+    #theme-toggle {
+      background: #444;
+    }
+    #theme-toggle:hover {
+      background: #222;
+    }
+    footer {
+      position: fixed;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      opacity: 0.6;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>📦 Каталог модів з перекладами</h1>
+    <h1>🇺🇦 Українські переклади модів</h1>
+    <input type="text" id="search" placeholder="Пошук по назві...">
+    <select id="version-filter"><option value="">Версія MC</option></select>
+    <select id="loader-filter"><option value="">Лоадер</option></select>
+    <select id="author-filter"><option value="">Автор</option></select>
+    <button id="theme-toggle">🌙</button>
   </header>
 
-  <div id="filters">
-    <input type="text" id="search" placeholder="🔍 Пошук по назві...">
-    <select id="versionFilter"><option value="">Версія гри</option></select>
-    <select id="authorFilter"><option value="">Автор перекладу</option></select>
-  </div>
+  <div class="mod-list" id="mod-list"></div>
 
-  <div id="mods"></div>
+  <footer>
+    час відчасу зʼявляється новий переклад, але для того щоб він у вас появився натисніть Ctrl + F5
+  </footer>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
-    let allMods = [];
+    const repoOwner = "halitflyn";
+    const repoName = "ua";
+    const basePath = "mods";
+    const rawBaseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main`;
+
+    async function fetchRepoContents(path) {
+      const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      return await res.json();
+    }
 
     async function loadMods() {
-      const index = await fetch("mods/index.json").then(r => r.json());
-      for (const modName of index.mods) {
-        await loadMod(modName);
-      }
-      fillFilters();
-      renderMods();
-    }
+      const mods = await fetchRepoContents(basePath);
+      if (!mods) return;
+      const modList = document.getElementById("mod-list");
+      const versionSet = new Set(), loaderSet = new Set(), authorSet = new Set();
 
-    async function loadMod(name) {
-      const [info, desc, img] = await Promise.all([
-        fetch(`mods/${name}/mod.json`).then(r => r.json()),
-        fetch(`mods/${name}/mod.txt`).then(r => r.text()),
-        fetch(`mods/${name}/image.jpeg`).then(r => r.blob())
-      ]);
-      allMods.push({ name, info, desc, img: URL.createObjectURL(img) });
-    }
+      for (const mod of mods) {
+        if (mod.type !== "dir") continue;
+        const modPath = `${basePath}/${mod.name}`;
+        const contents = await fetchRepoContents(modPath);
+        if (!contents) continue;
 
-    function fillFilters() {
-      const versionSet = new Set(), authorSet = new Set();
-      allMods.forEach(m => m.info.forEach(v => {
-        versionSet.add(v.version);
-        authorSet.add(v.author);
-      }));
-      const vf = document.getElementById("versionFilter");
-      versionSet.forEach(v => vf.innerHTML += `<option value="${v}">${v}</option>`);
-      const af = document.getElementById("authorFilter");
-      authorSet.forEach(a => af.innerHTML += `<option value="${a}">${a}</option>`);
-    }
+        let modJson=null, modTxt=null, imageUrl=null, langFiles=[];
+        for (const file of contents) {
+          if (file.name === "mod.json") {
+            const res = await fetch(`${rawBaseUrl}/${modPath}/mod.json`);
+            modJson = res.ok ? await res.json() : null;
+          } else if (file.name === "mod.txt") {
+            const res = await fetch(`${rawBaseUrl}/${modPath}/mod.txt`);
+            modTxt = res.ok ? await res.text() : null;
+          } else if (file.name === "image.jpeg") {
+            imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`;
+          } else if (file.name.toLowerCase() === "lang") {
+            const langs = await fetchRepoContents(`${modPath}/lang`);
+            if (langs) {
+              langFiles = langs.map(l => ({
+                author: l.name.replace(".json",""),
+                url: `${rawBaseUrl}/${modPath}/lang/${l.name}`
+              }));
+            }
+          }
+        }
+        if (!modJson || !modTxt) continue;
+        const [name, description] = modTxt.trim().split("\n");
 
-    function renderMods() {
-      const q = document.getElementById("search").value.toLowerCase();
-      const v = document.getElementById("versionFilter").value;
-      const a = document.getElementById("authorFilter").value;
-      const container = document.getElementById("mods");
-      container.innerHTML = "";
-
-      allMods.forEach(mod => {
-        let match = mod.name.toLowerCase().includes(q);
-        if (v && !mod.info.some(i => i.version === v)) match = false;
-        if (a && !mod.info.some(i => i.author === a)) match = false;
-        if (!match) return;
+        modJson.forEach(v=>{
+          versionSet.add(v.version);
+          loaderSet.add(v.loader);
+          authorSet.add(v.author);
+        });
 
         const card = document.createElement("div");
         card.className = "mod-card";
+        card.dataset.name = name.toLowerCase();
+        card.dataset.versions = modJson.map(v=>v.version).join(",");
+        card.dataset.loaders = modJson.map(v=>v.loader).join(",");
+        card.dataset.authors = modJson.map(v=>v.author.toLowerCase()).join(",");
+
         card.innerHTML = `
-          <img src="${mod.img}" alt="${mod.name}">
-          <div class="info">
-            <h3>${mod.name}</h3>
-            <p>${mod.desc}</p>
-          </div>
+          <img src="${imageUrl}" alt="${name}">
+          <h2>${name}</h2>
+          <p>${description}</p>
+          <button onclick='alert("Тут можна показати вибір перекладу")'>Вибрати переклад</button>
         `;
+        modList.appendChild(card);
+      }
+      fillSelect("version-filter", versionSet);
+      fillSelect("loader-filter", loaderSet);
+      fillSelect("author-filter", authorSet);
+    }
 
-        const btns = document.createElement("div");
-        btns.className = "buttons";
-        const dl = document.createElement("button");
-        dl.textContent = "⬇️ Завантажити";
-        dl.onclick = () => downloadMod(mod);
-        btns.appendChild(dl);
-        card.appendChild(btns);
-
-        container.appendChild(card);
+    function fillSelect(id, values) {
+      const select = document.getElementById(id);
+      [...values].sort().forEach(v=>{
+        const opt=document.createElement("option");
+        opt.value=v.toLowerCase();
+        opt.textContent=v;
+        select.appendChild(opt);
       });
     }
 
-    async function downloadMod(mod) {
-      const ver = mod.info[0]; // поки що перша версія
-      const [modFile, langFile] = await Promise.all([
-        fetch(ver.link).then(r => r.blob()),
-        fetch(`mods/${mod.name}/Lang/${ver.author}.json`).then(r => r.blob())
-      ]);
-      const zip = new JSZip();
-      zip.file("mod.jar", modFile);
-      zip.file("ua_uk.json", langFile);
-      const blob = await zip.generateAsync({ type: "blob" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `${ver.name}.zip`;
-      a.click();
+    function filterMods() {
+      const search = document.getElementById("search").value.toLowerCase();
+      const ver = document.getElementById("version-filter").value;
+      const loader = document.getElementById("loader-filter").value;
+      const author = document.getElementById("author-filter").value;
+      document.querySelectorAll(".mod-card").forEach(card=>{
+        const matchName = card.dataset.name.includes(search);
+        const matchVer = !ver || card.dataset.versions.toLowerCase().split(",").includes(ver);
+        const matchLoader = !loader || card.dataset.loaders.toLowerCase().split(",").includes(loader);
+        const matchAuthor = !author || card.dataset.authors.split(",").includes(author);
+        card.classList.toggle("hidden", !(matchName && matchVer && matchLoader && matchAuthor));
+      });
     }
 
-    document.getElementById("search").oninput = renderMods;
-    document.getElementById("versionFilter").onchange = renderMods;
-    document.getElementById("authorFilter").onchange = renderMods;
+    document.getElementById("search").addEventListener("input", filterMods);
+    document.getElementById("version-filter").addEventListener("change", filterMods);
+    document.getElementById("loader-filter").addEventListener("change", filterMods);
+    document.getElementById("author-filter").addEventListener("change", filterMods);
+
+    document.getElementById("theme-toggle").onclick = () => {
+      document.body.classList.toggle("dark");
+    };
 
     loadMods();
   </script>
