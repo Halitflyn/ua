@@ -29,9 +29,11 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         .mod-card img {
-            width: 100%;
+            width: 66.67%;
             height: auto;
             border-radius: 4px;
+            display: block;
+            margin: 0 auto;
         }
         .mod-card h2 {
             margin: 10px 0;
@@ -57,26 +59,75 @@
         button:hover {
             background-color: #45a049;
         }
-        #combine-tab {
-            margin-top: 40px;
-            text-align: center;
+        #combine-open {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
         }
-        #combine-tab input {
-            margin: 10px;
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #select-list div {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
     <h1>Українські переклади модів (як Modrinth)</h1>
+    <button id="combine-open">Об'єднати мод</button>
     <div id="mod-list" class="mod-list"></div>
     
-    <div id="combine-tab">
-        <h2>Об'єднати мод і переклад</h2>
-        <p>Завантажте мод (.jar) і переклад (uk_ua.json), сайт об'єднає їх і завантажить оновлений мод.</p>
-        <input type="file" id="mod-file" accept=".jar">
-        <input type="file" id="json-file" accept=".json">
-        <button onclick="combineFiles()">Об'єднати та завантажити</button>
+    <div id="combine-modal" class="modal">
+        <div class="modal-content">
+            <span class="close combine-close">&times;</span>
+            <h2>Об'єднати мод і переклад</h2>
+            <p>Завантажте мод (.jar) і переклад (uk_ua.json), сайт об'єднає їх і завантажить оновлений мод.</p>
+            <input type="file" id="mod-file" accept=".jar">
+            <input type="file" id="json-file" accept=".json">
+            <button onclick="combineFiles()">Об'єднати та завантажити</button>
+        </div>
+    </div>
+
+    <div id="select-modal" class="modal">
+        <div class="modal-content">
+            <span class="close select-close">&times;</span>
+            <h2>Вибрати переклад</h2>
+            <div id="select-list"></div>
+        </div>
     </div>
 
     <script>
@@ -139,8 +190,8 @@
                         }
                     } else if (file.name === 'image.jpeg') {
                         imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`;
-                    } else if (file.name === 'lang' && file.type === 'dir') {
-                        const langPath = `${modPath}/lang`;
+                    } else if (file.name === 'Lang' && file.type === 'dir') {
+                        const langPath = `${modPath}/Lang`;
                         const langContents = await fetchRepoContents(langPath);
                         if (langContents && Array.isArray(langContents)) {
                             langFiles = langContents.map(f => ({
@@ -154,6 +205,24 @@
                 if (modJson && modTxt && imageUrl) {
                     const [name, description, modrinthLink] = modTxt.trim().split('\n');
 
+                    // Aggregate versions and loaders
+                    const allVersions = modJson.map(v => v.version).sort((a, b) => {
+                        const aParts = a.split('.').map(Number);
+                        const bParts = b.split('.').map(Number);
+                        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+                            if ((aParts[i] || 0) !== (bParts[i] || 0)) {
+                                return (aParts[i] || 0) - (bParts[i] || 0);
+                            }
+                        }
+                        return 0;
+                    });
+                    const uniqueVersions = [...new Set(allVersions)];
+                    const minVersion = uniqueVersions[0];
+                    const maxVersion = uniqueVersions[uniqueVersions.length - 1];
+                    const versionText = minVersion === maxVersion ? minVersion : `${minVersion}-${maxVersion}`;
+
+                    const allLoaders = [...new Set(modJson.map(v => v.loader))].sort().join(' - ');
+
                     const card = document.createElement('div');
                     card.className = 'mod-card';
                     card.innerHTML = `
@@ -161,40 +230,46 @@
                         <h2>${name}</h2>
                         <p>${description}</p>
                         <p><a href="${modrinthLink}" target="_blank">Modrinth сторінка</a></p>
-                        <div class="version-list"></div>
+                        <p>Версія: ${versionText}</p>
+                        <p>(${allLoaders})</p>
+                        <button onclick='showSelectModal(${JSON.stringify(modJson)}, ${JSON.stringify(langFiles)}, "${name}")'>Вибрати переклад</button>
                     `;
 
-                    const versionList = card.querySelector('.version-list');
-                    modJson.forEach(version => {
-                        const langFile = langFiles.find(l => l.author.toLowerCase() === version.author.toLowerCase());
-                        if (langFile) {
-                            const versionItem = document.createElement('div');
-                            versionItem.className = 'version-item';
-                            versionItem.innerHTML = `
-                                <p>Версія: ${version.version} (${version.loader}) - Автор перекладу: ${version.author}</p>
-                                <button onclick="downloadBoth('${version.link}', '${langFile.url}', '${version.name}')">Завантажити мод + переклад</button>
-                            `;
-                            versionList.appendChild(versionItem);
-                        }
-                    });
-
-                    if (versionList.children.length > 0) {
-                        modListDiv.appendChild(card);
-                    }
+                    modListDiv.appendChild(card);
                 }
             }
         }
 
-        async function downloadBoth(jarUrl, jsonUrl, baseName) {
-            // Download JAR directly
+        function showSelectModal(modJson, langFiles, modName) {
+            const modal = document.getElementById('select-modal');
+            const list = document.getElementById('select-list');
+            list.innerHTML = '';
+            modJson.forEach(version => {
+                const langFile = langFiles.find(l => l.author.toLowerCase() === version.author.toLowerCase());
+                if (langFile) {
+                    const item = document.createElement('div');
+                    item.innerHTML = `
+                        <p>Версія: ${version.version} (${version.loader})</p>
+                        <p>Автор: ${version.author}</p>
+                        <button onclick="downloadBoth('${version.link}', '${langFile.url}', '${modName}')">Завантажити</button>
+                    `;
+                    list.appendChild(item);
+                }
+            });
+            modal.style.display = 'block';
+        }
+
+        async function downloadBoth(jarUrl, jsonUrl, modName) {
+            // Download JAR
+            const jarFilename = jarUrl.split('/').pop();
             const jarLink = document.createElement('a');
             jarLink.href = jarUrl;
-            jarLink.download = baseName + '.jar';
+            jarLink.download = jarFilename;
             document.body.appendChild(jarLink);
             jarLink.click();
             document.body.removeChild(jarLink);
 
-            // Download JSON with check
+            // Download JSON
             try {
                 const response = await fetch(jsonUrl);
                 if (!response.ok) {
@@ -261,6 +336,22 @@
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         }
+
+        // Modal controls
+        const combineModal = document.getElementById('combine-modal');
+        const selectModal = document.getElementById('select-modal');
+        const combineOpen = document.getElementById('combine-open');
+        const combineClose = document.querySelector('.combine-close');
+        const selectClose = document.querySelector('.select-close');
+
+        combineOpen.onclick = () => { combineModal.style.display = 'block'; };
+        combineClose.onclick = () => { combineModal.style.display = 'none'; };
+        selectClose.onclick = () => { selectModal.style.display = 'none'; };
+
+        window.onclick = (event) => {
+            if (event.target === combineModal) combineModal.style.display = 'none';
+            if (event.target === selectModal) selectModal.style.display = 'none';
+        };
 
         loadMods();
     </script>
