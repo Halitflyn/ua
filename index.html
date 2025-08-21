@@ -1,78 +1,241 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8">
-  <title>UA переклади для модів</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f8f8f8; padding: 20px; }
-    .mod-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-    .mod-card { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-    .mod-card img { width: 100%; border-radius: 12px; margin-bottom: 10px; }
-    .mod-card h2 { margin: 5px 0; }
-    .download-btn { display: inline-block; padding: 10px 15px; background: #4CAF50; color: white; border-radius: 8px; text-decoration: none; font-weight: bold; cursor: pointer; }
-    .download-btn:hover { background: #45a049; }
-    select { margin: 10px 0; padding: 5px; }
-  </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Українські переклади модів</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+        }
+        .mod-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .mod-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 10px;
+            padding: 15px;
+            width: 300px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .mod-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        .mod-card h2 {
+            margin: 10px 0;
+        }
+        .mod-card p {
+            margin: 5px 0;
+        }
+        .version-list {
+            margin-top: 10px;
+        }
+        .version-item {
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #combine-tab {
+            margin-top: 40px;
+            text-align: center;
+        }
+        #combine-tab input {
+            margin: 10px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
-  <h1>Переклади українською для модів</h1>
-  <div class="mod-list" id="modList"></div>
+    <h1>Українські переклади модів (як Modrinth)</h1>
+    <div id="mod-list" class="mod-list"></div>
+    
+    <div id="combine-tab">
+        <h2>Об'єднати мод і переклад</h2>
+        <p>Завантажте мод (.jar) і переклад (uk_ua.json), сайт об'єднає їх і завантажить оновлений мод.</p>
+        <input type="file" id="mod-file" accept=".jar">
+        <input type="file" id="json-file" accept=".json">
+        <button onclick="combineFiles()">Об'єднати та завантажити</button>
+    </div>
 
-  <script>
-    async function loadMod(modName) {
-      // читаємо файли
-      const [modTxt, modJson, image] = await Promise.all([
-        fetch(`mods/${modName}/mod.txt`).then(r => r.text()),
-        fetch(`mods/${modName}/mod.json`).then(r => r.json()),
-        fetch(`mods/${modName}/image.jpeg`).then(r => r.blob())
-      ]);
+    <script>
+        const repoOwner = 'halitflyn';
+        const repoName = 'ua';
+        const basePath = 'mods';
+        const rawBaseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main`;
 
-      const langs = ["Halitflyn.json", "fehyki.json"]; // можна генерувати з index.json
+        async function fetchRepoContents(path) {
+            const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
+            const response = await fetch(url);
+            return await response.json();
+        }
 
-      const [title, desc, link] = modTxt.split("\n");
-      const latest = modJson[modJson.length - 1]; // остання версія
+        async function loadMods() {
+            const mods = await fetchRepoContents(basePath);
+            const modListDiv = document.getElementById('mod-list');
 
-      // створюємо картку
-      const card = document.createElement("div");
-      card.className = "mod-card";
-      card.innerHTML = `
-        <img src="${URL.createObjectURL(image)}" alt="${title}">
-        <h2>${title}</h2>
-        <p>${desc}</p>
-        <a href="${link}" target="_blank">Сторінка на Modrinth</a><br><br>
-        <label>Оберіть переклад:</label><br>
-        <select id="langSelect-${modName}">
-          ${langs.map(l => `<option value="${l}">${l.replace(".json","")}</option>`).join("")}
-        </select><br>
-        <button class="download-btn">Скачати з перекладом</button>
-      `;
+            for (const mod of mods) {
+                if (mod.type === 'dir') {
+                    const modPath = `${basePath}/${mod.name}`;
+                    const modContents = await fetchRepoContents(modPath);
 
-      card.querySelector(".download-btn").onclick = async () => {
-        const langFile = document.getElementById(`langSelect-${modName}`).value;
-        const [modFile, uaJson] = await Promise.all([
-          fetch(latest.link).then(r => r.arrayBuffer()),
-          fetch(`mods/${modName}/Lang/${langFile}`).then(r => r.text())
-        ]);
+                    let modJson, modTxt, imageUrl, langFiles = [];
 
-        const zip = new JSZip();
-        await zip.loadAsync(modFile);
+                    for (const file of modContents) {
+                        if (file.name === 'mod.json') {
+                            const jsonResponse = await fetch(`${rawBaseUrl}/${modPath}/mod.json`);
+                            modJson = await jsonResponse.json();
+                        } else if (file.name === 'mod.txt') {
+                            const txtResponse = await fetch(`${rawBaseUrl}/${modPath}/mod.txt`);
+                            modTxt = await txtResponse.text();
+                        } else if (file.name === 'image.jpeg') {
+                            imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`;
+                        } else if (file.name === 'Lang' && file.type === 'dir') {
+                            const langPath = `${modPath}/Lang`;
+                            const langContents = await fetchRepoContents(langPath);
+                            langFiles = langContents.map(f => ({
+                                author: f.name.replace('.json', ''),
+                                url: `${rawBaseUrl}/${langPath}/${f.name}`
+                            }));
+                        }
+                    }
 
-        // ⚡ Шлях усередині мода — треба налаштувати для кожного
-        zip.file("assets/tensura/lang/uk_ua.json", uaJson);
+                    if (modJson && modTxt && imageUrl) {
+                        const [name, description, modrinthLink] = modTxt.trim().split('\n');
 
-        const newJar = await zip.generateAsync({ type: "blob" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(newJar);
-        a.download = `${latest.name}.jar`;
-        a.click();
-      };
+                        const card = document.createElement('div');
+                        card.className = 'mod-card';
+                        card.innerHTML = `
+                            <img src="${imageUrl}" alt="${name}">
+                            <h2>${name}</h2>
+                            <p>${description}</p>
+                            <p><a href="${modrinthLink}" target="_blank">Modrinth сторінка</a></p>
+                            <div class="version-list"></div>
+                        `;
 
-      document.getElementById("modList").appendChild(card);
-    }
+                        const versionList = card.querySelector('.version-list');
+                        modJson.forEach(version => {
+                            // Match author to lang file
+                            const langFile = langFiles.find(l => l.author.toLowerCase() === version.author.toLowerCase());
+                            if (langFile) {
+                                const versionItem = document.createElement('div');
+                                versionItem.className = 'version-item';
+                                versionItem.innerHTML = `
+                                    <p>Версія: ${version.version} (${version.loader}) - Автор перекладу: ${version.author}</p>
+                                    <button onclick="downloadBoth('${version.link}', '${langFile.url}', '${version.name}')">Завантажити мод + переклад</button>
+                                `;
+                                versionList.appendChild(versionItem);
+                            }
+                        });
 
-    // поки вручну, але можна зробити index.json
-    loadMod("tensura");
-  </script>
+                        modListDiv.appendChild(card);
+                    }
+                }
+            }
+        }
+
+        function downloadBoth(jarUrl, jsonUrl, baseName) {
+            // Download JAR
+            const jarLink = document.createElement('a');
+            jarLink.href = jarUrl;
+            jarLink.download = baseName + '.jar';
+            document.body.appendChild(jarLink);
+            jarLink.click();
+            document.body.removeChild(jarLink);
+
+            // Download JSON as uk_ua.json
+            const jsonLink = document.createElement('a');
+            jsonLink.href = jsonUrl;
+            jsonLink.download = 'uk_ua.json';
+            document.body.appendChild(jsonLink);
+            jsonLink.click();
+            document.body.removeChild(jsonLink);
+        }
+
+        async function combineFiles() {
+            const modFile = document.getElementById('mod-file').files[0];
+            const jsonFile = document.getElementById('json-file').files[0];
+
+            if (!modFile || !jsonFile) {
+                alert('Будь ласка, завантажте обидва файли.');
+                return;
+            }
+
+            const zip = new JSZip();
+            const modArrayBuffer = await modFile.arrayBuffer();
+            await zip.loadAsync(modArrayBuffer);
+
+            const jsonContent = await jsonFile.text();
+            // Assuming the path for language file is assets/<modid>/lang/uk_ua.json
+            // But since modid is unknown, we'll assume it's added to 'assets/modid/lang/uk_ua.json' – but need modid.
+            // For simplicity, add to root or assume path. In real mods, it's specific.
+            // We'll add it as 'assets/tensura/lang/uk_ua.json' – but generalize? For now, assume user knows, or add to 'lang/uk_ua.json' but that's not standard.
+            // Minecraft mods have lang files in assets/<namespace>/lang/<lang>.json
+            // Namespace is modid, e.g., for tensura it's probably 'tensura'.
+            // Since mod name is folder name, use that as modid.
+            // But to keep simple, add to 'assets/tensura/lang/uk_ua.json' – but make it generic.
+            // Actually, since it's for any mod, prompt or assume path is 'assets/mod/lang/uk_ua.json' but mod unknown.
+            // For this example, we'll hardcode for 'tensura' as in user's example, or add to a standard path.
+            // Better: add the json as 'uk_ua.json' to the zip root, but that's not correct.
+            // To make it work, we need to know the modid. Perhaps extract from jar's fabric.mod.json or forge mods.toml.
+            // Let's parse mods.toml or fabric.mod.json to get id.
+
+            let modid = 'unknown';
+            const modFiles = Object.keys(zip.files);
+
+            // Check for Forge mods.toml
+            if (zip.file('META-INF/mods.toml')) {
+                const tomlContent = await zip.file('META-INF/mods.toml').async('string');
+                const modidMatch = tomlContent.match(/modId\s*=\s*"([^"]+)"/);
+                if (modidMatch) modid = modidMatch[1];
+            } else if (zip.file('fabric.mod.json')) {
+                // Fabric/Quilt
+                const jsonContent = await zip.file('fabric.mod.json').async('string');
+                const modMeta = JSON.parse(jsonContent);
+                modid = modMeta.id;
+            }
+
+            if (modid !== 'unknown') {
+                const langPath = `assets/${modid}/lang/uk_ua.json`;
+                zip.file(langPath, jsonContent);
+            } else {
+                alert('Не вдалося визначити modid. Додайте вручну.');
+                return;
+            }
+
+            const newZipBlob = await zip.generateAsync({type: 'blob'});
+            const url = URL.createObjectURL(newZipBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = modFile.name.replace('.jar', '_translated.jar');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        loadMods();
+    </script>
 </body>
 </html>
