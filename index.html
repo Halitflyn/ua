@@ -2,18 +2,52 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>Об'єднання мода з перекладом</title>
+  <title>Моди + переклад</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    button { margin: 10px 0; padding: 10px 15px; }
+  </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
-  <h1>Об'єднати мод з перекладом</h1>
+  <h1>Сайт модів</h1>
+  <nav>
+    <button onclick="showTab('download')">Скачати</button>
+    <button onclick="showTab('merge')">Об'єднати</button>
+  </nav>
 
-  <p>Завантажте мод (.jar) і файл перекладу (json):</p>
-  <input type="file" id="modFile" accept=".jar,.zip"><br><br>
-  <input type="file" id="jsonFile" accept=".json"><br><br>
-  <button id="mergeBtn">Об'єднати</button>
+  <!-- Вкладка скачування -->
+  <div id="download" class="tab active">
+    <h2>Скачати файли</h2>
+    <p>
+      <a href="https://cdn.modrinth.com/data/Br0kXPwc/versions/ZGHJ9fEA/tensura-1.19.2-1.0.2.5.jar" download>
+        <button>Скачати мод (з Modrinth)</button>
+      </a>
+    </p>
+    <p>
+      <a href="mods/uk_ua.json" download>
+        <button>Скачати переклад (uk_ua.json)</button>
+      </a>
+    </p>
+  </div>
+
+  <!-- Вкладка об'єднання -->
+  <div id="merge" class="tab">
+    <h2>Об'єднати мод і переклад</h2>
+    <p>Завантажте мод (.jar) і файл перекладу (.json):</p>
+    <input type="file" id="modFile" accept=".jar,.zip"><br><br>
+    <input type="file" id="jsonFile" accept=".json"><br><br>
+    <button id="mergeBtn">Об'єднати</button>
+  </div>
 
   <script>
+    function showTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+    }
+
     document.getElementById("mergeBtn").onclick = async () => {
       const modFile = document.getElementById("modFile").files[0];
       const jsonFile = document.getElementById("jsonFile").files[0];
@@ -28,15 +62,15 @@
 
       const jsonData = await jsonFile.text();
 
-      // ⚡ шлях треба підлаштувати під структуру мода
-      zip.file("assets/mymod/lang/uk_ua.json", jsonData);
+      // ⚡ Тут треба вказати правильний шлях усередині архіву
+      // для перекладу (наприклад assets/tensura/lang/uk_ua.json).
+      zip.file("assets/tensura/lang/uk_ua.json", jsonData);
 
       const newJar = await zip.generateAsync({ type: "blob" });
 
-      // створюємо посилання для скачування
       const a = document.createElement("a");
       a.href = URL.createObjectURL(newJar);
-      a.download = "mod_with_ukrainian.jar";
+      a.download = "tensura_with_ukrainian.jar";
       a.click();
     };
   </script>
