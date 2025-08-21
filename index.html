@@ -15,6 +15,17 @@
         h1 {
             text-align: center;
         }
+        #search-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #search-input {
+            padding: 10px;
+            width: 300px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
         .mod-list {
             display: flex;
             flex-wrap: wrap;
@@ -26,7 +37,7 @@
             border-radius: 8px;
             margin: 10px;
             padding: 15px;
-            width: 250px;
+            width: 220px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         .mod-card img {
@@ -104,11 +115,17 @@
             border-bottom: 1px solid #ddd;
             padding-bottom: 10px;
         }
+        .hidden {
+            display: none;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
     <h1>Українські переклади модів (як Modrinth)</h1>
+    <div id="search-container">
+        <input type="text" id="search-input" placeholder="Пошук по версії, ядру або автору...">
+    </div>
     <button id="combine-open">Об'єднати мод</button>
     <div id="mod-list" class="mod-list"></div>
     
@@ -224,6 +241,8 @@
 
                     const allLoaders = [...new Set(modJson.map(v => v.loader))].sort().join(' - ');
 
+                    const allAuthors = [...new Set(modJson.map(v => v.author.toLowerCase()))].join(' ');
+
                     const card = document.createElement('div');
                     card.className = 'mod-card';
                     card.innerHTML = `
@@ -238,6 +257,11 @@
                     selectButton.textContent = 'Вибрати переклад';
                     selectButton.addEventListener('click', () => showSelectModal(modJson, langFiles, name));
                     card.appendChild(selectButton);
+
+                    // Add data attributes for filtering
+                    card.dataset.versions = allVersions.join(' ').toLowerCase();
+                    card.dataset.loaders = allLoaders.toLowerCase();
+                    card.dataset.authors = allAuthors;
 
                     modListDiv.appendChild(card);
                 }
@@ -365,7 +389,29 @@
             if (event.target === selectModal) selectModal.style.display = 'none';
         };
 
-        loadMods();
+        // Search filter
+        function filterMods() {
+            const input = document.getElementById('search-input');
+            const filter = input.value.toLowerCase();
+            const cards = document.querySelectorAll('.mod-card');
+
+            cards.forEach(card => {
+                const versions = card.dataset.versions;
+                const loaders = card.dataset.loaders;
+                const authors = card.dataset.authors;
+
+                if (versions.includes(filter) || loaders.includes(filter) || authors.includes(filter)) {
+                    card.classList.remove('hidden');
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+        }
+
+        loadMods().then(() => {
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', filterMods);
+        });
     </script>
 </body>
 </html>
