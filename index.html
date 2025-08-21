@@ -2,93 +2,43 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>Каталог модів</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 {
-      text-align: center;
-      color: #333;
-    }
-    .mod-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-      margin-top: 30px;
-    }
-    .mod-card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-    .mod-title {
-      font-size: 18px;
-      font-weight: bold;
-      margin-bottom: 10px;
-      color: #222;
-    }
-    .mod-desc {
-      flex-grow: 1;
-      font-size: 14px;
-      color: #555;
-      margin-bottom: 15px;
-    }
-    .download-btn {
-      display: inline-block;
-      text-align: center;
-      padding: 10px;
-      background: #4CAF50;
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: bold;
-      transition: background 0.2s ease-in-out;
-    }
-    .download-btn:hover {
-      background: #45a049;
-    }
-  </style>
+  <title>Об'єднання мода з перекладом</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
+  <h1>Об'єднати мод з перекладом</h1>
 
-  <h1>Каталог модів</h1>
+  <p>Завантажте мод (.jar) і файл перекладу (json):</p>
+  <input type="file" id="modFile" accept=".jar,.zip"><br><br>
+  <input type="file" id="jsonFile" accept=".json"><br><br>
+  <button id="mergeBtn">Об'єднати</button>
 
-  <div class="mod-list">
-    <!-- Мод 1 -->
-    <div class="mod-card">
-      <div class="mod-title">Український переклад</div>
-      <div class="mod-desc">Додає повну українську локалізацію гри.</div>
-      <a href="mods/uk_ua.json" download="ukrainian-translation.json" class="download-btn">
-        Скачати
-      </a>
-    </div>
+  <script>
+    document.getElementById("mergeBtn").onclick = async () => {
+      const modFile = document.getElementById("modFile").files[0];
+      const jsonFile = document.getElementById("jsonFile").files[0];
+      if (!modFile || !jsonFile) {
+        alert("Будь ласка, завантажте обидва файли!");
+        return;
+      }
 
-    <!-- Мод 2 -->
-    <div class="mod-card">
-      <div class="mod-title">Супер меч</div>
-      <div class="mod-desc">Мод додає нову зброю з особливими ефектами.</div>
-      <a href="mods/super_sword.jar" download="super_sword.jar" class="download-btn">
-        Скачати
-      </a>
-    </div>
+      const zip = new JSZip();
+      const modData = await modFile.arrayBuffer();
+      await zip.loadAsync(modData);
 
-    <!-- Мод 3 -->
-    <div class="mod-card">
-      <div class="mod-title">Оптимізація FPS</div>
-      <div class="mod-desc">Покращує продуктивність гри на слабких комп’ютерах.</div>
-      <a href="mods/fps_boost.zip" download="fps_boost.zip" class="download-btn">
-        Скачати
-      </a>
-    </div>
-  </div>
+      const jsonData = await jsonFile.text();
 
+      // ⚡ шлях треба підлаштувати під структуру мода
+      zip.file("assets/mymod/lang/uk_ua.json", jsonData);
+
+      const newJar = await zip.generateAsync({ type: "blob" });
+
+      // створюємо посилання для скачування
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(newJar);
+      a.download = "mod_with_ukrainian.jar";
+      a.click();
+    };
+  </script>
 </body>
 </html>
