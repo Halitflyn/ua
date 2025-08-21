@@ -1,126 +1,417 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Українські переклади модів</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
-    h1 { text-align: center; }
-    .mod-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
-    .mod-card { background: #fff; padding: 15px; border-radius: 12px; width: 260px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); position: relative; }
-    .mod-card img { width: 80%; display: block; margin: 0 auto 10px; border-radius: 8px; }
-    button { background: #4CAF50; border: none; color: white; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
-    button:hover { background: #3c9642; }
-    .popup { display: none; position: absolute; top: 10px; left: 10px; right: 10px; background: #fff; border: 1px solid #ccc; border-radius: 10px; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-    .popup select { width: 100%; margin-bottom: 10px; padding: 5px; }
-    .popup button { width: 100%; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Українські переклади модів</title>
+    <link rel="icon" href="data:,">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+        }
+        #search-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #search-input {
+            padding: 10px;
+            width: 300px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .mod-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .mod-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 10px;
+            padding: 15px;
+            width: 220px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .mod-card img {
+            width: 66.67%;
+            height: auto;
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto;
+        }
+        .mod-card h2 {
+            margin: 10px 0;
+        }
+        .mod-card p {
+            margin: 5px 0;
+        }
+        .version-list {
+            margin-top: 10px;
+        }
+        .version-item {
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #combine-open {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #select-list div {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
-  <h1>🇺🇦 Українські переклади модів</h1>
-  <div class="mod-list" id="mod-list"></div>
+    <h1>Українські переклади модів (як Modrinth)</h1>
+    <div id="search-container">
+        <input type="text" id="search-input" placeholder="Пошук по версії, ядру або автору...">
+    </div>
+    <button id="combine-open">Об'єднати мод</button>
+    <div id="mod-list" class="mod-list"></div>
+    
+    <div id="combine-modal" class="modal">
+        <div class="modal-content">
+            <span class="close combine-close">&times;</span>
+            <h2>Об'єднати мод і переклад</h2>
+            <p>Завантажте мод (.jar) і переклад (uk_ua.json), сайт об'єднає їх і завантажить оновлений мод.</p>
+            <input type="file" id="mod-file" accept=".jar">
+            <input type="file" id="json-file" accept=".json">
+            <button onclick="combineFiles()">Об'єднати та завантажити</button>
+        </div>
+    </div>
 
-  <script>
-    const repoOwner = "halitflyn";
-    const repoName = "ua";
-    const basePath = "mods";
-    const rawBaseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main`;
+    <div id="select-modal" class="modal">
+        <div class="modal-content">
+            <span class="close select-close">&times;</span>
+            <h2>Вибрати переклад</h2>
+            <div id="select-list"></div>
+        </div>
+    </div>
 
-    async function fetchRepoContents(path) {
-      const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      return await res.json();
-    }
+    <script>
+        const repoOwner = 'halitflyn';
+        const repoName = 'ua';
+        const basePath = 'mods';
+        const rawBaseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main`;
 
-    async function loadMods() {
-      const mods = await fetchRepoContents(basePath);
-      if (!mods) return;
-      const modList = document.getElementById("mod-list");
-
-      for (const mod of mods) {
-        if (mod.type !== "dir") continue;
-        const modPath = `${basePath}/${mod.name}`;
-        const contents = await fetchRepoContents(modPath);
-        if (!contents) continue;
-
-        let modJson=null, modTxt=null, imageUrl=null, langFiles=[];
-        for (const file of contents) {
-          if (file.name === "mod.json") {
-            const res = await fetch(`${rawBaseUrl}/${modPath}/mod.json`);
-            modJson = res.ok ? await res.json() : null;
-          } else if (file.name === "mod.txt") {
-            const res = await fetch(`${rawBaseUrl}/${modPath}/mod.txt`);
-            modTxt = res.ok ? await res.text() : null;
-          } else if (file.name === "image.jpeg") {
-            imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`;
-          } else if (file.name === "lang") {
-            const langs = await fetchRepoContents(`${modPath}/lang`);
-            if (langs) {
-              langFiles = langs.map(l => ({
-                author: l.name.replace(".json",""),
-                url: `${rawBaseUrl}/${modPath}/lang/${l.name}`
-              }));
+        async function fetchRepoContents(path) {
+            const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    return null;
+                }
+                return await response.json();
+            } catch (e) {
+                console.error(`Error fetching contents for ${path}:`, e);
+                return null;
             }
-          }
         }
-        if (!modJson || !modTxt) continue;
-        const [name, description] = modTxt.trim().split("\n");
 
-        const card = document.createElement("div");
-        card.className = "mod-card";
+        async function loadMods() {
+            const mods = await fetchRepoContents(basePath);
+            if (!mods || !Array.isArray(mods)) return;
 
-        card.innerHTML = `
-          <img src="${imageUrl}" alt="${name}">
-          <h2>${name}</h2>
-          <p>${description}</p>
-          <button onclick="togglePopup('${mod.name}')">Вибрати переклад</button>
-          <div class="popup" id="popup-${mod.name}">
-            <select id="ver-${mod.name}">
-              ${modJson.map(v=>`<option value="${v.link}">${v.version} (${v.loader})</option>`).join("")}
-            </select>
-            <select id="lang-${mod.name}">
-              ${langFiles.map(l=>`<option value="${l.url}">${l.author}</option>`).join("")}
-            </select>
-            <button onclick="downloadBoth('${mod.name}')">⬇️ Завантажити</button>
-          </div>
-        `;
-        modList.appendChild(card);
-      }
-    }
+            const modListDiv = document.getElementById('mod-list');
 
-    function togglePopup(modName) {
-      const popup = document.getElementById(`popup-${modName}`);
-      popup.style.display = popup.style.display === "block" ? "none" : "block";
-    }
+            for (const mod of mods) {
+                if (mod.type !== 'dir') continue;
 
-    async function downloadFile(url, filename) {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-    }
+                const modPath = `${basePath}/${mod.name}`;
+                const modContents = await fetchRepoContents(modPath);
+                if (!modContents || !Array.isArray(modContents)) continue;
 
-    function downloadBoth(modName) {
-      const verSelect = document.getElementById(`ver-${modName}`);
-      const langSelect = document.getElementById(`lang-${modName}`);
-      const jarUrl = verSelect.value;
-      const jsonUrl = langSelect.value;
+                let modJson = null;
+                let modTxt = null;
+                let imageUrl = null;
+                let langFiles = [];
 
-      // качаємо jar
-      const jarName = jarUrl.split("/").pop();
-      downloadFile(jarUrl, jarName);
+                for (const file of modContents) {
+                    if (file.name === 'mod.json') {
+                        try {
+                            const jsonResponse = await fetch(`${rawBaseUrl}/${modPath}/mod.json`);
+                            if (jsonResponse.ok) {
+                                modJson = await jsonResponse.json();
+                                if (!Array.isArray(modJson)) modJson = null;
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching mod.json for ${mod.name}:`, e);
+                        }
+                    } else if (file.name === 'mod.txt') {
+                        try {
+                            const txtResponse = await fetch(`${rawBaseUrl}/${modPath}/mod.txt`);
+                            if (txtResponse.ok) {
+                                modTxt = await txtResponse.text();
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching mod.txt for ${mod.name}:`, e);
+                        }
+                    } else if (file.name === 'image.jpeg') {
+                        imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`;
+                    } else if (file.name === 'lang' && file.type === 'dir') {
+                        const langPath = `${modPath}/lang`;
+                        const langContents = await fetchRepoContents(langPath);
+                        if (langContents && Array.isArray(langContents)) {
+                            langFiles = langContents.map(f => ({
+                                author: f.name.replace('.json', ''),
+                                url: `${rawBaseUrl}/${langPath}/${f.name}`
+                            }));
+                        }
+                    }
+                }
 
-      // качаємо json як uk_ua.json
-      downloadFile(jsonUrl, "uk_ua.json");
+                if (modJson && modTxt && imageUrl) {
+                    const [name, description, modrinthLink] = modTxt.trim().split('\n');
 
-      togglePopup(modName);
-    }
+                    // Aggregate versions and loaders
+                    const allVersions = modJson.map(v => v.version).sort((a, b) => {
+                        const aParts = a.split('.').map(Number);
+                        const bParts = b.split('.').map(Number);
+                        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+                            if ((aParts[i] || 0) !== (bParts[i] || 0)) {
+                                return (aParts[i] || 0) - (bParts[i] || 0);
+                            }
+                        }
+                        return 0;
+                    });
+                    const uniqueVersions = [...new Set(allVersions)];
+                    const minVersion = uniqueVersions[0];
+                    const maxVersion = uniqueVersions[uniqueVersions.length - 1];
+                    const versionText = minVersion === maxVersion ? minVersion : `${minVersion}-${maxVersion}`;
 
-    loadMods();
-  </script>
+                    const allLoaders = [...new Set(modJson.map(v => v.loader))].sort().join(' - ');
+
+                    const allAuthors = [...new Set(modJson.map(v => v.author.toLowerCase()))].join(' ');
+
+                    const card = document.createElement('div');
+                    card.className = 'mod-card';
+                    card.innerHTML = `
+                        <img src="${imageUrl}" alt="${name}">
+                        <h2>${name}</h2>
+                        <p>${description}</p>
+                        <p><a href="${modrinthLink}" target="_blank">Modrinth сторінка</a></p>
+                        <p>Версія: ${versionText}</p>
+                        <p>(${allLoaders})</p>
+                    `;
+                    const selectButton = document.createElement('button');
+                    selectButton.textContent = 'Вибрати переклад';
+                    selectButton.addEventListener('click', () => showSelectModal(modJson, langFiles, name));
+                    card.appendChild(selectButton);
+
+                    // Add data attributes for filtering
+                    card.dataset.versions = allVersions.join(' ').toLowerCase();
+                    card.dataset.loaders = allLoaders.toLowerCase();
+                    card.dataset.authors = allAuthors;
+
+                    modListDiv.appendChild(card);
+                }
+            }
+        }
+
+        function showSelectModal(modJson, langFiles, modName) {
+            const modal = document.getElementById('select-modal');
+            const list = document.getElementById('select-list');
+            list.innerHTML = '';
+            let hasItems = false;
+            modJson.forEach(version => {
+                const langFile = langFiles.find(l => l.author.toLowerCase() === version.author.toLowerCase());
+                if (langFile) {
+                    hasItems = true;
+                    const item = document.createElement('div');
+                    item.innerHTML = `
+                        <p>Версія: ${version.version} (${version.loader})</p>
+                        <p>Автор: ${version.author}</p>
+                    `;
+                    const downloadButton = document.createElement('button');
+                    downloadButton.textContent = 'Завантажити';
+                    downloadButton.addEventListener('click', () => downloadBoth(version.link, langFile.url, modName));
+                    item.appendChild(downloadButton);
+                    list.appendChild(item);
+                }
+            });
+            if (!hasItems) {
+                list.innerHTML = '<p>Немає доступних перекладів.</p>';
+            }
+            modal.style.display = 'block';
+        }
+
+        async function downloadBoth(jarUrl, jsonUrl, modName) {
+            // Download JAR
+            const jarFilename = jarUrl.split('/').pop();
+            const jarLink = document.createElement('a');
+            jarLink.href = jarUrl;
+            jarLink.download = jarFilename;
+            document.body.appendChild(jarLink);
+            jarLink.click();
+            document.body.removeChild(jarLink);
+
+            // Download JSON
+            try {
+                const response = await fetch(jsonUrl);
+                if (!response.ok) {
+                    throw new Error('Переклад не знайдено');
+                }
+                const blob = await response.blob();
+                const jsonLink = document.createElement('a');
+                jsonLink.href = URL.createObjectURL(blob);
+                jsonLink.download = 'uk_ua.json';
+                document.body.appendChild(jsonLink);
+                jsonLink.click();
+                document.body.removeChild(jsonLink);
+                URL.revokeObjectURL(jsonLink.href);
+            } catch (e) {
+                alert('Помилка завантаження перекладу: ' + e.message);
+            }
+        }
+
+        async function combineFiles() {
+            const modFile = document.getElementById('mod-file').files[0];
+            const jsonFile = document.getElementById('json-file').files[0];
+
+            if (!modFile || !jsonFile) {
+                alert('Будь ласка, завантажте обидва файли.');
+                return;
+            }
+
+            const zip = new JSZip();
+            const modArrayBuffer = await modFile.arrayBuffer();
+            await zip.loadAsync(modArrayBuffer);
+
+            const jsonContent = await jsonFile.text();
+
+            let modid = 'unknown';
+            const modFiles = Object.keys(zip.files);
+
+            // Check for Forge mods.toml
+            if (zip.file('META-INF/mods.toml')) {
+                const tomlContent = await zip.file('META-INF/mods.toml').async('string');
+                const modidMatch = tomlContent.match(/modId\s*=\s*"([^"]+)"/);
+                if (modidMatch) modid = modidMatch[1];
+            } else if (zip.file('fabric.mod.json')) {
+                // Fabric/Quilt
+                const jsonContent = await zip.file('fabric.mod.json').async('string');
+                const modMeta = JSON.parse(jsonContent);
+                modid = modMeta.id;
+            }
+
+            if (modid !== 'unknown') {
+                const langPath = `assets/${modid}/lang/uk_ua.json`;
+                zip.file(langPath, jsonContent);
+            } else {
+                alert('Не вдалося визначити modid. Додайте вручну.');
+                return;
+            }
+
+            const newZipBlob = await zip.generateAsync({type: 'blob'});
+            const url = URL.createObjectURL(newZipBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = modFile.name.replace('.jar', '_translated.jar');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // Modal controls
+        const combineModal = document.getElementById('combine-modal');
+        const selectModal = document.getElementById('select-modal');
+        const combineOpen = document.getElementById('combine-open');
+        const combineClose = document.querySelector('.combine-close');
+        const selectClose = document.querySelector('.select-close');
+
+        combineOpen.onclick = () => { combineModal.style.display = 'block'; };
+        combineClose.onclick = () => { combineModal.style.display = 'none'; };
+        selectClose.onclick = () => { selectModal.style.display = 'none'; };
+
+        window.onclick = (event) => {
+            if (event.target === combineModal) combineModal.style.display = 'none';
+            if (event.target === selectModal) selectModal.style.display = 'none';
+        };
+
+        // Search filter
+        function filterMods() {
+            const input = document.getElementById('search-input');
+            const filter = input.value.toLowerCase();
+            const cards = document.querySelectorAll('.mod-card');
+
+            cards.forEach(card => {
+                const versions = card.dataset.versions;
+                const loaders = card.dataset.loaders;
+                const authors = card.dataset.authors;
+
+                if (versions.includes(filter) || loaders.includes(filter) || authors.includes(filter)) {
+                    card.classList.remove('hidden');
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+        }
+
+        loadMods().then(() => {
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', filterMods);
+        });
+    </script>
 </body>
 </html>
