@@ -2,77 +2,77 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>Моди + переклад</title>
+  <title>UA переклади для модів</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    .tab { display: none; }
-    .tab.active { display: block; }
-    button { margin: 10px 0; padding: 10px 15px; }
+    body { font-family: Arial, sans-serif; background: #f8f8f8; padding: 20px; }
+    .mod-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+    .mod-card { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .mod-card img { width: 100%; border-radius: 12px; margin-bottom: 10px; }
+    .mod-card h2 { margin: 5px 0; }
+    .download-btn { display: inline-block; padding: 10px 15px; background: #4CAF50; color: white; border-radius: 8px; text-decoration: none; font-weight: bold; cursor: pointer; }
+    .download-btn:hover { background: #45a049; }
+    select { margin: 10px 0; padding: 5px; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
-  <h1>Сайт модів</h1>
-  <nav>
-    <button onclick="showTab('download')">Скачати</button>
-    <button onclick="showTab('merge')">Об'єднати</button>
-  </nav>
-
-  <!-- Вкладка скачування -->
-  <div id="download" class="tab active">
-    <h2>Скачати файли</h2>
-    <p>
-      <a href="https://cdn.modrinth.com/data/Br0kXPwc/versions/ZGHJ9fEA/tensura-1.19.2-1.0.2.5.jar" download>
-        <button>Скачати мод (з Modrinth)</button>
-      </a>
-    </p>
-    <p>
-      <a href="mods/uk_ua.json" download>
-        <button>Скачати переклад (uk_ua.json)</button>
-      </a>
-    </p>
-  </div>
-
-  <!-- Вкладка об'єднання -->
-  <div id="merge" class="tab">
-    <h2>Об'єднати мод і переклат</h2>
-    <p>Завантажте мод (.jar) і файл перекладу (.json):</p>
-    <input type="file" id="modFile" accept=".jar,.zip"><br><br>
-    <input type="file" id="jsonFile" accept=".json"><br><br>
-    <button id="mergeBtn">Об'єднати</button>
-  </div>
+  <h1>Переклади українською для модів</h1>
+  <div class="mod-list" id="modList"></div>
 
   <script>
-    function showTab(tabId) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
+    async function loadMod(modName) {
+      // читаємо файли
+      const [modTxt, modJson, image] = await Promise.all([
+        fetch(`mods/${modName}/mod.txt`).then(r => r.text()),
+        fetch(`mods/${modName}/mod.json`).then(r => r.json()),
+        fetch(`mods/${modName}/image.jpeg`).then(r => r.blob())
+      ]);
+
+      const langs = ["Halitflyn.json", "fehyki.json"]; // можна генерувати з index.json
+
+      const [title, desc, link] = modTxt.split("\n");
+      const latest = modJson[modJson.length - 1]; // остання версія
+
+      // створюємо картку
+      const card = document.createElement("div");
+      card.className = "mod-card";
+      card.innerHTML = `
+        <img src="${URL.createObjectURL(image)}" alt="${title}">
+        <h2>${title}</h2>
+        <p>${desc}</p>
+        <a href="${link}" target="_blank">Сторінка на Modrinth</a><br><br>
+        <label>Оберіть переклад:</label><br>
+        <select id="langSelect-${modName}">
+          ${langs.map(l => `<option value="${l}">${l.replace(".json","")}</option>`).join("")}
+        </select><br>
+        <button class="download-btn">Скачати з перекладом</button>
+      `;
+
+      card.querySelector(".download-btn").onclick = async () => {
+        const langFile = document.getElementById(`langSelect-${modName}`).value;
+        const [modFile, uaJson] = await Promise.all([
+          fetch(latest.link).then(r => r.arrayBuffer()),
+          fetch(`mods/${modName}/Lang/${langFile}`).then(r => r.text())
+        ]);
+
+        const zip = new JSZip();
+        await zip.loadAsync(modFile);
+
+        // ⚡ Шлях усередині мода — треба налаштувати для кожного
+        zip.file("assets/tensura/lang/uk_ua.json", uaJson);
+
+        const newJar = await zip.generateAsync({ type: "blob" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(newJar);
+        a.download = `${latest.name}.jar`;
+        a.click();
+      };
+
+      document.getElementById("modList").appendChild(card);
     }
 
-    document.getElementById("mergeBtn").onclick = async () => {
-      const modFile = document.getElementById("modFile").files[0];
-      const jsonFile = document.getElementById("jsonFile").files[0];
-      if (!modFile || !jsonFile) {
-        alert("Будь ласка, завантажте обидва файли!");
-        return;
-      }
-
-      const zip = new JSZip();
-      const modData = await modFile.arrayBuffer();
-      await zip.loadAsync(modData);
-
-      const jsonData = await jsonFile.text();
-
-      // ⚡ Тут треба вказати правильний шлях усередині архіву
-      // для перекладу (наприклад assets/tensura/lang/uk_ua.json).
-      zip.file("assets/tensura/lang/uk_ua.json", jsonData);
-
-      const newJar = await zip.generateAsync({ type: "blob" });
-
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(newJar);
-      a.download = "tensura_with_ukrainian.jar";
-      a.click();
-    };
+    // поки вручну, але можна зробити index.json
+    loadMod("tensura");
   </script>
 </body>
 </html>
