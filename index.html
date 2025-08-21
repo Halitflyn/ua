@@ -123,12 +123,16 @@
   let versions = new Set();
   let authors = new Set();
 
-  async function loadMods() {
-    // TODO: тут можна зробити index.json і динамічно додавати моди
-    await loadMod("tensura"); // приклад
-    fillFilters();
-    renderMods();
+async function loadMods() {
+  const index = await fetch("mods/index.json").then(r => r.json());
+
+  for (const modName of index.mods) {
+    await loadMod(modName);
   }
+
+  fillFilters();
+  renderMods();
+}
 
   async function loadMod(modName) {
     const [modTxt, modJson, image] = await Promise.all([
