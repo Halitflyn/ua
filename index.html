@@ -87,76 +87,106 @@
 
         async function fetchRepoContents(path) {
             const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
-            const response = await fetch(url);
-            return await response.json();
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    return null;
+                }
+                return await response.json();
+            } catch (e) {
+                console.error(`Error fetching contents for ${path}:`, e);
+                return null;
+            }
         }
 
         async function loadMods() {
             const mods = await fetchRepoContents(basePath);
+            if (!mods || !Array.isArray(mods)) return;
+
             const modListDiv = document.getElementById('mod-list');
 
             for (const mod of mods) {
-                if (mod.type === 'dir') {
-                    const modPath = `${basePath}/${mod.name}`;
-                    const modContents = await fetchRepoContents(modPath);
+                if (mod.type !== 'dir') continue;
 
-                    let modJson, modTxt, imageUrl, langFiles = [];
+                const modPath = `${basePath}/${mod.name}`;
+                const modContents = await fetchRepoContents(modPath);
+                if (!modContents || !Array.isArray(modContents)) continue;
 
-                    for (const file of modContents) {
-                        if (file.name === 'mod.json') {
+                let modJson = null;
+                let modTxt = null;
+                let imageUrl = null;
+                let langFiles = [];
+
+                for (const file of modContents) {
+                    if (file.name === 'mod.json') {
+                        try {
                             const jsonResponse = await fetch(`${rawBaseUrl}/${modPath}/mod.json`);
-                            modJson = await jsonResponse.json();
-                        } else if (file.name === 'mod.txt') {
+                            if (jsonResponse.ok) {
+                                modJson = await jsonResponse.json();
+                                if (!Array.isArray(modJson)) modJson = null;
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching mod.json for ${mod.name}:`, e);
+                        }
+                    } else if (file.name === 'mod.txt') {
+                        try {
                             const txtResponse = await fetch(`${rawBaseUrl}/${modPath}/mod.txt`);
-                            modTxt = await txtResponse.text();
-                        } else if (file.name === 'image.jpeg') {
-                            imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`;
-                        } else if (file.name === 'Lang' && file.type === 'dir') {
-                            const langPath = `${modPath}/Lang`;
-                            const langContents = await fetchRepoContents(langPath);
+                            if (txtResponse.ok) {
+                                modTxt = await txtResponse.text();
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching mod.txt for ${mod.name}:`, e);
+                        }
+                    } else if (file.name === 'image.jpeg') {
+                        imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`;
+                    } else if (file.name === 'Lang' && file.type === 'dir') {
+                        const langPath = `${modPath}/Lang`;
+                        const langContents = await fetchRepoContents(langPath);
+                        if (langContents && Array.isArray(langContents)) {
                             langFiles = langContents.map(f => ({
                                 author: f.name.replace('.json', ''),
                                 url: `${rawBaseUrl}/${langPath}/${f.name}`
                             }));
                         }
                     }
+                }
 
-                    if (modJson && modTxt && imageUrl) {
-                        const [name, description, modrinthLink] = modTxt.trim().split('\n');
+                if (modJson && modTxt && imageUrl) {
+                    const [name, description, modrinthLink] = modTxt.trim().split('\n');
 
-                        const card = document.createElement('div');
-                        card.className = 'mod-card';
-                        card.innerHTML = `
-                            <img src="${imageUrl}" alt="${name}">
-                            <h2>${name}</h2>
-                            <p>${description}</p>
-                            <p><a href="${modrinthLink}" target="_blank">Modrinth сторінка</a></p>
-                            <div class="version-list"></div>
-                        `;
+                    const card = document.createElement('div');
+                    card.className = 'mod-card';
+                    card.innerHTML = `
+                        <img src="${imageUrl}" alt="${name}">
+                        <h2>${name}</h2>
+                        <p>${description}</p>
+                        <p><a href="${modrinthLink}" target="_blank">Modrinth сторінка</a></p>
+                        <div class="version-list"></div>
+                    `;
 
-                        const versionList = card.querySelector('.version-list');
-                        modJson.forEach(version => {
-                            // Match author to lang file
-                            const langFile = langFiles.find(l => l.author.toLowerCase() === version.author.toLowerCase());
-                            if (langFile) {
-                                const versionItem = document.createElement('div');
-                                versionItem.className = 'version-item';
-                                versionItem.innerHTML = `
-                                    <p>Версія: ${version.version} (${version.loader}) - Автор перекладу: ${version.author}</p>
-                                    <button onclick="downloadBoth('${version.link}', '${langFile.url}', '${version.name}')">Завантажити мод + переклад</button>
-                                `;
-                                versionList.appendChild(versionItem);
-                            }
-                        });
+                    const versionList = card.querySelector('.version-list');
+                    modJson.forEach(version => {
+                        const langFile = langFiles.find(l => l.author.toLowerCase() === version.author.toLowerCase());
+                        if (langFile) {
+                            const versionItem = document.createElement('div');
+                            versionItem.className = 'version-item';
+                            versionItem.innerHTML = `
+                                <p>Версія: ${version.version} (${version.loader}) - Автор перекладу: ${version.author}</p>
+                                <button onclick="downloadBoth('${version.link}', '${langFile.url}', '${version.name}')">Завантажити мод + переклад</button>
+                            `;
+                            versionList.appendChild(versionItem);
+                        }
+                    });
 
+                    if (versionList.children.length > 0) {
                         modListDiv.appendChild(card);
                     }
                 }
             }
         }
 
-        function downloadBoth(jarUrl, jsonUrl, baseName) {
-            // Download JAR
+        async function downloadBoth(jarUrl, jsonUrl, baseName) {
+            // Download JAR directly
             const jarLink = document.createElement('a');
             jarLink.href = jarUrl;
             jarLink.download = baseName + '.jar';
@@ -164,13 +194,23 @@
             jarLink.click();
             document.body.removeChild(jarLink);
 
-            // Download JSON as uk_ua.json
-            const jsonLink = document.createElement('a');
-            jsonLink.href = jsonUrl;
-            jsonLink.download = 'uk_ua.json';
-            document.body.appendChild(jsonLink);
-            jsonLink.click();
-            document.body.removeChild(jsonLink);
+            // Download JSON with check
+            try {
+                const response = await fetch(jsonUrl);
+                if (!response.ok) {
+                    throw new Error('Переклад не знайдено');
+                }
+                const blob = await response.blob();
+                const jsonLink = document.createElement('a');
+                jsonLink.href = URL.createObjectURL(blob);
+                jsonLink.download = 'uk_ua.json';
+                document.body.appendChild(jsonLink);
+                jsonLink.click();
+                document.body.removeChild(jsonLink);
+                URL.revokeObjectURL(jsonLink.href);
+            } catch (e) {
+                alert('Помилка завантаження перекладу: ' + e.message);
+            }
         }
 
         async function combineFiles() {
@@ -187,19 +227,6 @@
             await zip.loadAsync(modArrayBuffer);
 
             const jsonContent = await jsonFile.text();
-            // Assuming the path for language file is assets/<modid>/lang/uk_ua.json
-            // But since modid is unknown, we'll assume it's added to 'assets/modid/lang/uk_ua.json' – but need modid.
-            // For simplicity, add to root or assume path. In real mods, it's specific.
-            // We'll add it as 'assets/tensura/lang/uk_ua.json' – but generalize? For now, assume user knows, or add to 'lang/uk_ua.json' but that's not standard.
-            // Minecraft mods have lang files in assets/<namespace>/lang/<lang>.json
-            // Namespace is modid, e.g., for tensura it's probably 'tensura'.
-            // Since mod name is folder name, use that as modid.
-            // But to keep simple, add to 'assets/tensura/lang/uk_ua.json' – but make it generic.
-            // Actually, since it's for any mod, prompt or assume path is 'assets/mod/lang/uk_ua.json' but mod unknown.
-            // For this example, we'll hardcode for 'tensura' as in user's example, or add to a standard path.
-            // Better: add the json as 'uk_ua.json' to the zip root, but that's not correct.
-            // To make it work, we need to know the modid. Perhaps extract from jar's fabric.mod.json or forge mods.toml.
-            // Let's parse mods.toml or fabric.mod.json to get id.
 
             let modid = 'unknown';
             const modFiles = Object.keys(zip.files);
