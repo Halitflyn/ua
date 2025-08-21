@@ -7,40 +7,35 @@
     body {
       font-family: Arial, sans-serif;
       margin: 0;
-      background: var(--bg, #f5f5f5);
-      color: var(--text, #222);
-      transition: background 0.3s, color 0.3s;
+      background: #f5f5f5;
+      color: #222;
     }
+
     header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background: var(--header-bg, #4CAF50);
+      padding: 1rem;
+      text-align: center;
+      background: #2c3e50;
       color: #fff;
     }
-    header h1 {
-      margin: 0;
-      font-size: 22px;
-    }
-    .filters {
+
+    #filters {
       display: flex;
-      gap: 10px;
-      padding: 10px 20px;
+      gap: 1rem;
+      justify-content: center;
+      padding: 1rem;
+      flex-wrap: wrap;
+      background: #ecf0f1;
     }
-    .filters select, .filters input {
-      padding: 5px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
+
     #mods {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: 20px;
       padding: 20px;
     }
+
     .mod-card {
-      background: var(--card-bg, #fff);
+      background: #fff;
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       overflow: hidden;
@@ -48,19 +43,28 @@
       flex-direction: column;
       transition: transform 0.2s, box-shadow 0.2s;
     }
+
     .mod-card:hover {
       transform: translateY(-4px);
       box-shadow: 0 6px 16px rgba(0,0,0,0.15);
     }
+
     .mod-card img {
       width: 100%;
       height: 150px;
       object-fit: cover;
     }
+
     .info {
       padding: 12px;
       flex-grow: 1;
     }
+
+    .info h3 {
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+    }
+
     .buttons {
       display: flex;
       gap: 8px;
@@ -68,59 +72,38 @@
       justify-content: center;
       flex-wrap: wrap;
     }
+
     .buttons button {
-      padding: 6px 10px;
+      padding: 8px 12px;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
+      background: #3498db;
+      color: white;
       cursor: pointer;
-      background: #4CAF50;
-      color: #fff;
       transition: background 0.2s;
     }
+
     .buttons button:hover {
-      background: #45a049;
-    }
-    .dark {
-      --bg: #1e1e1e;
-      --text: #f0f0f0;
-      --card-bg: #2a2a2a;
-      --header-bg: #333;
-    }
-    footer {
-      text-align: center;
-      padding: 20px;
-      font-size: 12px;
-      opacity: 0.7;
+      background: #2980b9;
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>📦 Українські переклади модів</h1>
-    <button onclick="toggleTheme()">🌙</button>
+    <h1>📦 Каталог модів з перекладами</h1>
   </header>
 
-  <div class="filters">
-    <input type="text" id="search" placeholder="Пошук моду..." oninput="renderMods()">
-    <select id="versionFilter" onchange="renderMods()">
-      <option value="">Всі версії</option>
-    </select>
-    <select id="authorFilter" onchange="renderMods()">
-      <option value="">Всі автори</option>
-    </select>
+  <div id="filters">
+    <input type="text" id="search" placeholder="🔍 Пошук по назві...">
+    <select id="versionFilter"><option value="">Версія гри</option></select>
+    <select id="authorFilter"><option value="">Автор перекладу</option></select>
   </div>
 
   <div id="mods"></div>
 
-  <footer>
-    ✨ Час від часу з’являються нові переклади.<br>
-    Якщо не бачиш змін — натисни <b>Ctrl+F5</b>.
-  </footer>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
     let allMods = [];
-    let theme = "light";
 
     async function loadMods() {
       const index = await fetch("mods/index.json").then(r => r.json());
@@ -131,97 +114,81 @@
       renderMods();
     }
 
-    async function loadMod(modName) {
+    async function loadMod(name) {
       const [info, desc, img] = await Promise.all([
-        fetch(`mods/${modName}/mod.json`).then(r => r.json()),
-        fetch(`mods/${modName}/mod.txt`).then(r => r.text()),
-        fetch(`mods/${modName}/image.jpeg`).then(r => r.blob())
+        fetch(`mods/${name}/mod.json`).then(r => r.json()),
+        fetch(`mods/${name}/mod.txt`).then(r => r.text()),
+        fetch(`mods/${name}/image.jpeg`).then(r => r.blob())
       ]);
-
-      const imgUrl = URL.createObjectURL(img);
-      info.forEach(modVersion => {
-        allMods.push({
-          ...modVersion,
-          description: desc,
-          image: imgUrl,
-          modName
-        });
-      });
+      allMods.push({ name, info, desc, img: URL.createObjectURL(img) });
     }
 
     function fillFilters() {
-      const versions = [...new Set(allMods.map(m => m.version))];
-      const authors = [...new Set(allMods.map(m => m.author))];
-
-      const versionSelect = document.getElementById("versionFilter");
-      versions.forEach(v => {
-        const opt = document.createElement("option");
-        opt.value = v;
-        opt.textContent = v;
-        versionSelect.appendChild(opt);
-      });
-
-      const authorSelect = document.getElementById("authorFilter");
-      authors.forEach(a => {
-        const opt = document.createElement("option");
-        opt.value = a;
-        opt.textContent = a;
-        authorSelect.appendChild(opt);
-      });
+      const versionSet = new Set(), authorSet = new Set();
+      allMods.forEach(m => m.info.forEach(v => {
+        versionSet.add(v.version);
+        authorSet.add(v.author);
+      }));
+      const vf = document.getElementById("versionFilter");
+      versionSet.forEach(v => vf.innerHTML += `<option value="${v}">${v}</option>`);
+      const af = document.getElementById("authorFilter");
+      authorSet.forEach(a => af.innerHTML += `<option value="${a}">${a}</option>`);
     }
 
     function renderMods() {
-      const search = document.getElementById("search").value.toLowerCase();
-      const version = document.getElementById("versionFilter").value;
-      const author = document.getElementById("authorFilter").value;
-
+      const q = document.getElementById("search").value.toLowerCase();
+      const v = document.getElementById("versionFilter").value;
+      const a = document.getElementById("authorFilter").value;
       const container = document.getElementById("mods");
       container.innerHTML = "";
 
-      const filtered = allMods.filter(m =>
-        m.name.toLowerCase().includes(search) &&
-        (!version || m.version === version) &&
-        (!author || m.author === author)
-      );
+      allMods.forEach(mod => {
+        let match = mod.name.toLowerCase().includes(q);
+        if (v && !mod.info.some(i => i.version === v)) match = false;
+        if (a && !mod.info.some(i => i.author === a)) match = false;
+        if (!match) return;
 
-      filtered.forEach(mod => {
         const card = document.createElement("div");
         card.className = "mod-card";
         card.innerHTML = `
-          <img src="${mod.image}" alt="mod">
+          <img src="${mod.img}" alt="${mod.name}">
           <div class="info">
             <h3>${mod.name}</h3>
-            <p>${mod.description}</p>
-            <p><b>Версія:</b> ${mod.version} | <b>Автор:</b> ${mod.author}</p>
-          </div>
-          <div class="buttons">
-            <button onclick="downloadMod('${mod.link}', '${mod.modName}', '${mod.author}')">⬇️ Завантажити з перекладом</button>
+            <p>${mod.desc}</p>
           </div>
         `;
+
+        const btns = document.createElement("div");
+        btns.className = "buttons";
+        const dl = document.createElement("button");
+        dl.textContent = "⬇️ Завантажити";
+        dl.onclick = () => downloadMod(mod);
+        btns.appendChild(dl);
+        card.appendChild(btns);
+
         container.appendChild(card);
       });
     }
 
-    async function downloadMod(link, modName, author) {
+    async function downloadMod(mod) {
+      const ver = mod.info[0]; // поки що перша версія
+      const [modFile, langFile] = await Promise.all([
+        fetch(ver.link).then(r => r.blob()),
+        fetch(`mods/${mod.name}/Lang/${ver.author}.json`).then(r => r.blob())
+      ]);
       const zip = new JSZip();
-
-      const modFile = await fetch(link).then(r => r.blob());
-      zip.file(link.split("/").pop(), modFile);
-
-      const jsonFile = await fetch(`mods/${modName}/Lang/${author}.json`).then(r => r.blob());
-      zip.file("ua_uk.json", jsonFile);
-
-      const content = await zip.generateAsync({ type: "blob" });
+      zip.file("mod.jar", modFile);
+      zip.file("ua_uk.json", langFile);
+      const blob = await zip.generateAsync({ type: "blob" });
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(content);
-      a.download = `${modName}_with_translation.zip`;
+      a.href = URL.createObjectURL(blob);
+      a.download = `${ver.name}.zip`;
       a.click();
     }
 
-    function toggleTheme() {
-      theme = theme === "light" ? "dark" : "light";
-      document.body.className = theme === "dark" ? "dark" : "";
-    }
+    document.getElementById("search").oninput = renderMods;
+    document.getElementById("versionFilter").onchange = renderMods;
+    document.getElementById("authorFilter").onchange = renderMods;
 
     loadMods();
   </script>
