@@ -51,6 +51,9 @@ let allVersions = new Set();
 let allCores = new Set();
 let allAuthors = new Set();
 
+// Зберігаємо дані про моди для подальшого використання
+let modsData = [];
+
 async function fetchRepoContents(path) {
     const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
     try {
@@ -100,20 +103,40 @@ async function loadMods() {
             loadersArr.forEach(l => allCores.add(l));
             authorsArr.forEach(a => allAuthors.add(a));
 
+            // Видалити дублікати з loadersArr
+            const uniqueLoaders = [...new Set(loadersArr)];
+            const loadersDisplay = uniqueLoaders.join(' - ');
+
+            // Зберігаємо дані про мод
+            const modData = {
+                name,
+                description,
+                modrinthLink,
+                versions: versionsArr,
+                loaders: uniqueLoaders,
+                authors: authorsArr,
+                modJson,
+                langFiles,
+                imageUrl
+            };
+            modsData.push(modData);
+
             const card = document.createElement('div');
             card.className = 'mod-card';
             card.dataset.name = name.toLowerCase();
             card.dataset.versions = versionsArr.join(' ').toLowerCase();
-            card.dataset.loaders = loadersArr.join(' ').toLowerCase();
+            card.dataset.loaders = uniqueLoaders.join(' ').toLowerCase();
             card.dataset.authors = authorsArr.join(' ').toLowerCase();
+            card.dataset.modIndex = modsData.length - 1;
             card.innerHTML = `
                 <img src="${imageUrl}" alt="${name}">
                 <h2>${name}</h2>
                 <p>${description}</p>
                 <p><a href="${modrinthLink}" target="_blank">Modrinth сторінка</a></p>
                 <p>Версія: ${versionsArr.join(', ')}</p>
-                <p>(${loadersArr.join(' - ')})</p>
+                <p>(${loadersDisplay})</p>
             `;
+            
             const selectButton = document.createElement('button');
             selectButton.textContent = 'Вибрати переклад';
             selectButton.addEventListener('click', () => showSelectModal(modJson, langFiles, name));
@@ -136,6 +159,150 @@ function populateFilterOptions() {
     [...allAuthors].sort().forEach(a => { const opt = document.createElement('option'); opt.value = a; opt.textContent = a; aSelect.appendChild(opt); });
 }
 
+// Функція для створення ZIP файлу з перекладом
+async function createTranslationZip(modData, selectedVersion, selectedLoader, selectedAuthor) {
+    const zip = new JSZip();
+    
+    // Знаходимо відповідний mod.json
+    const modConfig = modData.modJson.find(m => 
+        m.version === selectedVersion && m.loader === selectedLoader
+    );
+    
+    if (modConfig) {
+        zip.file('mod.json', JSON.stringify(modConfig, null, 2));
+    }
+    
+    // Додаємо файл перекладу
+    const langFile = modData.langFiles.find(f => f.author === selectedAuthor);
+    if (langFile) {
+        try {
+            const response = await fetch(langFile.url);
+            if (response.ok) {
+                const langContent = await response.text();
+                zip.file('lang/uk_ua.json', langContent);
+            }
+        } catch (e) {
+            console.error('Error fetching lang file:', e);
+        }
+    }
+    
+    // Створюємо та завантажуємо ZIP
+    const blob = await zip.generateAsync({type: 'blob'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${modData.name}_${selectedVersion}_${selectedLoader}_${selectedAuthor}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Функція для перевірки кількості варіантів перекладу
+function getAvailableTranslations(modData, versionFilter, coreFilter) {
+    if (!modData) return [];
+    
+    const availableVersions = versionFilter ? [versionFilter] : modData.versions;
+    const availableLoaders = coreFilter ? [coreFilter] : modData.loaders;
+    
+    const translations = [];
+    
+    for (const version of availableVersions) {
+        for (const loader of availableLoaders) {
+            const hasModConfig = modData.modJson.some(m => 
+                m.version === version && m.loader === loader
+            );
+            
+            if (hasModConfig) {
+                for (const langFile of modData.langFiles) {
+                    translations.push({
+                        version,
+                        loader,
+                        author: langFile.author
+                    });
+                }
+            }
+        }
+    }
+    
+    return translations;
+}
+
+// Функція для показу модального вікна вибору перекладу
+function showSelectModal(modJson, langFiles, modName) {
+    // Створюємо модальне вікно
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    `;
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 500px;
+        max-height: 80vh;
+        overflow-y: auto;
+    `;
+    
+    modalContent.innerHTML = `
+        <h2>Виберіть варіант перекладу для ${modName}</h2>
+        <div id="translation-options"></div>
+        <button onclick="this.closest('.modal').remove()" style="margin-top: 10px;">Закрити</button>
+    `;
+    
+    const optionsContainer = modalContent.querySelector('#translation-options');
+    
+    // Створюємо опції для кожного варіанту
+    for (const modConfig of modJson) {
+        for (const langFile of langFiles) {
+            const optionDiv = document.createElement('div');
+            optionDiv.style.cssText = `
+                border: 1px solid #ddd;
+                margin: 10px 0;
+                padding: 10px;
+                border-radius: 4px;
+            `;
+            
+            optionDiv.innerHTML = `
+                <p><strong>Версія:</strong> ${modConfig.version}</p>
+                <p><strong>Ядро:</strong> ${modConfig.loader}</p>
+                <p><strong>Автор перекладу:</strong> ${langFile.author}</p>
+                <button onclick="downloadTranslation('${modName}', '${modConfig.version}', '${modConfig.loader}', '${langFile.author}')" 
+                        style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                    Завантажити
+                </button>
+            `;
+            
+            optionsContainer.appendChild(optionDiv);
+        }
+    }
+    
+    modal.appendChild(modalContent);
+    modal.className = 'modal';
+    document.body.appendChild(modal);
+}
+
+// Функція для завантаження перекладу з модального вікна
+async function downloadTranslation(modName, version, loader, author) {
+    const modData = modsData.find(m => m.name === modName);
+    if (modData) {
+        await createTranslationZip(modData, version, loader, author);
+        // Закриваємо модальне вікно
+        document.querySelector('.modal').remove();
+    }
+}
+
 // Фільтрація + пошук по назві
 function filterMods() {
     const search = document.getElementById('search-input').value.toLowerCase();
@@ -148,12 +315,41 @@ function filterMods() {
         const versions = card.dataset.versions;
         const loaders = card.dataset.loaders;
         const authors = card.dataset.authors;
+        const modIndex = parseInt(card.dataset.modIndex);
 
-        if (name.includes(search) &&
-            (versionFilter === '' || versions.includes(versionFilter)) &&
-            (coreFilter === '' || loaders.includes(coreFilter)) &&
-            (authorFilter === '' || authors.includes(authorFilter))
-        ) { card.classList.remove('hidden'); } else { card.classList.add('hidden'); }
+        // Перевіряємо чи мод має вибрану версію та ядро
+        const hasVersion = versionFilter === '' || versions.includes(versionFilter);
+        const hasLoader = coreFilter === '' || loaders.includes(coreFilter);
+        const hasAuthor = authorFilter === '' || authors.includes(authorFilter);
+        const hasName = name.includes(search);
+
+        if (hasName && hasVersion && hasLoader && hasAuthor) {
+            card.classList.remove('hidden');
+            
+            // Якщо вибрана конкретна версія або ядро, перевіряємо чи потрібно змінити кнопку
+            if (versionFilter !== '' || coreFilter !== '') {
+                const button = card.querySelector('button');
+                if (button) {
+                    const modData = modsData[modIndex];
+                    const availableTranslations = getAvailableTranslations(modData, versionFilter, coreFilter);
+                    
+                    if (availableTranslations.length === 1) {
+                        // Тільки один варіант - змінюємо кнопку на "Завантажити"
+                        button.textContent = 'Завантажити';
+                        button.onclick = () => {
+                            const translation = availableTranslations[0];
+                            createTranslationZip(modData, translation.version, translation.loader, translation.author);
+                        };
+                    } else {
+                        // Кілька варіантів - повертаємо оригінальну кнопку
+                        button.textContent = 'Вибрати переклад';
+                        button.onclick = () => showSelectModal(modData.modJson, modData.langFiles, modData.name);
+                    }
+                }
+            }
+        } else {
+            card.classList.add('hidden');
+        }
     });
 }
 
