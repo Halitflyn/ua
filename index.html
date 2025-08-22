@@ -6,531 +6,412 @@
     <title>Українські переклади модів</title>
     <link rel="icon" href="data:,">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
-        h1 { text-align: center; }
-        #search-container { text-align: center; margin-bottom: 20px; }
-        #search-input, select { padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; margin: 0 5px 10px 0; }
-        .mod-list { display: flex; flex-wrap: wrap; justify-content: center; }
-        .mod-card { background: white; border: 1px solid #ddd; border-radius: 8px; margin: 10px; padding: 15px; width: 220px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .mod-card img { width: 66.67%; height: auto; border-radius: 4px; display: block; margin: 0 auto; }
-        .mod-card h2 { margin: 10px 0; }
-        .mod-card p { margin: 5px 0; }
-        button { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; margin-top: 5px; }
-        button:hover { background-color: #45a049; }
-        .hidden { display: none; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+        }
+        #search-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #search-input {
+            padding: 10px;
+            width: 300px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .mod-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .mod-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 10px;
+            padding: 15px;
+            width: 220px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .mod-card img {
+            width: 66.67%;
+            height: auto;
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto;
+        }
+        .mod-card h2 {
+            margin: 10px 0;
+        }
+        .mod-card p {
+            margin: 5px 0;
+        }
+        .version-list {
+            margin-top: 10px;
+        }
+        .version-item {
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #combine-open {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #select-list div {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
-<h1>Українські переклади модів (як Modrinth)</h1>
-<div id="search-container">
-    <input type="text" id="search-input" placeholder="Пошук по назві мода..."><br>
-    <select id="filter-version">
-        <option value="">Всі версії</option>
-    </select>
-    <select id="filter-core">
-        <option value="">Всі ядра</option>
-    </select>
-    <select id="filter-author">
-        <option value="">Всі автори</option>
-    </select>
-</div>
-<button id="combine-open">Об'єднати мод</button>
-<div id="mod-list" class="mod-list"></div>
+    <h1>Українські переклади модів (як Modrinth)</h1>
+    <div id="search-container">
+        <input type="text" id="search-input" placeholder="Пошук по версії, ядру або автору...">
+    </div>
+    <button id="combine-open">Об'єднати мод</button>
+    <div id="mod-list" class="mod-list"></div>
+    
+    <div id="combine-modal" class="modal">
+        <div class="modal-content">
+            <span class="close combine-close">&times;</span>
+            <h2>Об'єднати мод і переклад</h2>
+            <p>Завантажте мод (.jar) і переклад (uk_ua.json), сайт об'єднає їх і завантажить оновлений мод.</p>
+            <input type="file" id="mod-file" accept=".jar">
+            <input type="file" id="json-file" accept=".json">
+            <button onclick="combineFiles()">Об'єднати та завантажити</button>
+        </div>
+    </div>
 
-<!-- Модальні вікна залишаються без змін -->
+    <div id="select-modal" class="modal">
+        <div class="modal-content">
+            <span class="close select-close">&times;</span>
+            <h2>Вибрати переклад</h2>
+            <div id="select-list"></div>
+        </div>
+    </div>
 
-<script>
-const repoOwner = 'halitflyn';
-const repoName = 'ua';
-const basePath = 'mods';
-const rawBaseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main`;
+    <script>
+        const repoOwner = 'halitflyn';
+        const repoName = 'ua';
+        const basePath = 'mods';
+        const rawBaseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main`;
 
-// Масиви для фільтрів
-let allVersions = new Set();
-let allCores = new Set();
-let allAuthors = new Set();
-
-// Зберігаємо дані про моди для подальшого використання
-let modsData = [];
-
-async function fetchRepoContents(path) {
-    const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
-    try {
-        const response = await fetch(url);
-        if (!response.ok) return null;
-        return await response.json();
-    } catch (e) { console.error(`Error fetching contents for ${path}:`, e); return null; }
-}
-
-async function loadMods() {
-    const mods = await fetchRepoContents(basePath);
-    if (!mods || !Array.isArray(mods)) return;
-    const modListDiv = document.getElementById('mod-list');
-
-    for (const mod of mods) {
-        if (mod.type !== 'dir') continue;
-        const modPath = `${basePath}/${mod.name}`;
-        const modContents = await fetchRepoContents(modPath);
-        if (!modContents || !Array.isArray(modContents)) continue;
-
-        let modJson = null, modTxt = null, imageUrl = null, langFiles = [];
-
-        for (const file of modContents) {
-            if (file.name === 'mod.json') {
-                try { 
-                    const jsonResponse = await fetch(`${rawBaseUrl}/${modPath}/mod.json`);
-                    if (jsonResponse.ok) modJson = await jsonResponse.json();
-                } catch(e) { console.error(e); }
-            } else if (file.name === 'mod.txt') {
-                try { const txtResponse = await fetch(`${rawBaseUrl}/${modPath}/mod.txt`); if (txtResponse.ok) modTxt = await txtResponse.text(); } catch(e) {}
-            } else if (file.name === 'image.jpeg') { imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`; }
-            else if (file.name === 'lang' && file.type === 'dir') {
-                const langPath = `${modPath}/lang`;
-                const langContents = await fetchRepoContents(langPath);
-                if (langContents) langFiles = langContents.map(f => ({author: f.name.replace('.json',''), url:`${rawBaseUrl}/${langPath}/${f.name}`}));
+        async function fetchRepoContents(path) {
+            const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    return null;
+                }
+                return await response.json();
+            } catch (e) {
+                console.error(`Error fetching contents for ${path}:`, e);
+                return null;
             }
         }
 
-        if (modJson && modTxt && imageUrl) {
-            const [name, description, modrinthLink] = modTxt.trim().split('\n');
-            
-            // modJson - це масив об'єктів, кожен з яких представляє окремий варіант мода
-            const versionsArr = modJson.map(v => v.version);
-            const loadersArr = modJson.map(v => v.loader);
-            const authorsArr = modJson.map(v => v.author);
+        async function loadMods() {
+            const mods = await fetchRepoContents(basePath);
+            if (!mods || !Array.isArray(mods)) return;
 
-            // Додати у множини для фільтрів
-            versionsArr.forEach(v => allVersions.add(v));
-            loadersArr.forEach(l => allCores.add(l));
-            authorsArr.forEach(a => allAuthors.add(a));
+            const modListDiv = document.getElementById('mod-list');
 
-            // Видалити дублікати з loadersArr
-            const uniqueLoaders = [...new Set(loadersArr)];
-            const loadersDisplay = uniqueLoaders.join(' - ');
+            for (const mod of mods) {
+                if (mod.type !== 'dir') continue;
 
-            // Зберігаємо дані про мод
-            const modData = {
-                name,
-                description,
-                modrinthLink,
-                versions: versionsArr,
-                loaders: uniqueLoaders,
-                authors: authorsArr,
-                modJson, // Це масив об'єктів
-                langFiles,
-                imageUrl
-            };
-            modsData.push(modData);
+                const modPath = `${basePath}/${mod.name}`;
+                const modContents = await fetchRepoContents(modPath);
+                if (!modContents || !Array.isArray(modContents)) continue;
 
-            const card = document.createElement('div');
-            card.className = 'mod-card';
-            card.dataset.name = name.toLowerCase();
-            card.dataset.versions = versionsArr.join(' ').toLowerCase();
-            card.dataset.loaders = uniqueLoaders.join(' ').toLowerCase();
-            card.dataset.authors = authorsArr.join(' ').toLowerCase();
-            card.dataset.modIndex = modsData.length - 1;
-            card.innerHTML = `
-                <img src="${imageUrl}" alt="${name}">
-                <h2>${name}</h2>
-                <p>${description}</p>
-                <p><a href="${modrinthLink}" target="_blank">Modrinth сторінка</a></p>
-                <p>Версія: ${versionsArr.join(', ')}</p>
-                <p>(${loadersDisplay})</p>
-            `;
-            
-            const selectButton = document.createElement('button');
-            selectButton.textContent = 'Вибрати переклад';
-            selectButton.addEventListener('click', () => showSelectModal(modJson, langFiles, name));
-            card.appendChild(selectButton);
-            modListDiv.appendChild(card);
-        }
-    }
+                let modJson = null;
+                let modTxt = null;
+                let imageUrl = null;
+                let langFiles = [];
 
-    populateFilterOptions();
-}
-
-// Заповнити фільтри
-function populateFilterOptions() {
-    const vSelect = document.getElementById('filter-version');
-    const cSelect = document.getElementById('filter-core');
-    const aSelect = document.getElementById('filter-author');
-
-    [...allVersions].sort().forEach(v => { const opt = document.createElement('option'); opt.value = v; opt.textContent = v; vSelect.appendChild(opt); });
-    [...allCores].sort().forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.textContent = c; cSelect.appendChild(opt); });
-    [...allAuthors].sort().forEach(a => { const opt = document.createElement('option'); opt.value = a; opt.textContent = a; aSelect.appendChild(opt); });
-}
-
-// Функція для створення ZIP файлу з перекладом
-async function createTranslationZip(modData, selectedVersion, selectedLoader, selectedAuthor) {
-    const zip = new JSZip();
-    
-    // Знаходимо відповідний mod.json з масиву об'єктів
-    const modConfig = modData.modJson.find(m => 
-        m.version === selectedVersion && m.loader === selectedLoader
-    );
-    
-    if (modConfig) {
-        // Створюємо mod.json з вибраною конфігурацією
-        zip.file('mod.json', JSON.stringify(modConfig, null, 2));
-    }
-    
-    // Додаємо файл перекладу
-    const langFile = modData.langFiles.find(f => f.author === selectedAuthor);
-    if (langFile) {
-        try {
-            const response = await fetch(langFile.url);
-            if (response.ok) {
-                const langContent = await response.text();
-                zip.file('lang/uk_ua.json', langContent);
-            }
-        } catch (e) {
-            console.error('Error fetching lang file:', e);
-        }
-    }
-    
-    // Створюємо та завантажуємо ZIP
-    const blob = await zip.generateAsync({type: 'blob'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${modData.name}_${selectedVersion}_${selectedLoader}_${selectedAuthor}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-// Функція для перевірки кількості варіантів перекладу
-function getAvailableTranslations(modData, versionFilter, coreFilter) {
-    if (!modData) return [];
-    
-    // modData.modJson - це масив об'єктів, кожен об'єкт - це окремий варіант мода
-    let availableConfigs = modData.modJson;
-    
-    // Фільтруємо за версією та ядром
-    if (versionFilter) {
-        availableConfigs = availableConfigs.filter(config => 
-            config.version.toLowerCase() === versionFilter.toLowerCase()
-        );
-    }
-    
-    if (coreFilter) {
-        availableConfigs = availableConfigs.filter(config => 
-            config.loader.toLowerCase() === coreFilter.toLowerCase()
-        );
-    }
-    
-    // Створюємо список всіх можливих комбінацій
-    const translations = [];
-    
-    for (const modConfig of availableConfigs) {
-        for (const langFile of modData.langFiles) {
-            translations.push({
-                version: modConfig.version,
-                loader: modConfig.loader,
-                author: langFile.author
-            });
-        }
-    }
-    
-    return translations;
-}
-
-// Функція для показу модального вікна вибору перекладу
-function showSelectModal(modJson, langFiles, modName) {
-    // Отримуємо поточні фільтри
-    const versionFilter = document.getElementById('filter-version').value.toLowerCase();
-    const coreFilter = document.getElementById('filter-core').value.toLowerCase();
-    
-    // Створюємо модальне вікно
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    `;
-    
-    const modalContent = document.createElement('div');
-    modalContent.style.cssText = `
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        max-width: 500px;
-        max-height: 80vh;
-        overflow-y: auto;
-    `;
-    
-    // Додаємо інформацію про фільтри
-    const filterInfo = [];
-    if (versionFilter) filterInfo.push(`Версія: ${versionFilter}`);
-    if (coreFilter) filterInfo.push(`Ядро: ${coreFilter}`);
-    const filterText = filterInfo.length > 0 ? ` (Фільтр: ${filterInfo.join(', ')})` : '';
-    
-    modalContent.innerHTML = `
-        <h2>Виберіть варіант перекладу для ${modName}${filterText}</h2>
-        <div id="translation-options"></div>
-        <button onclick="this.closest('.modal').remove()" style="margin-top: 10px;">Закрити</button>
-    `;
-    
-    const optionsContainer = modalContent.querySelector('#translation-options');
-    
-    // modJson - це масив об'єктів, кожен об'єкт - це окремий варіант мода
-    // Фільтруємо варіанти відповідно до поточних фільтрів
-    let configsToShow = modJson;
-    
-    if (versionFilter || coreFilter) {
-        console.log('Фільтри активні:', { versionFilter, coreFilter });
-        console.log('Всі конфігурації:', modJson);
-        
-        configsToShow = modJson.filter(modConfig => {
-            const matchesVersion = !versionFilter || modConfig.version.toLowerCase() === versionFilter;
-            const matchesLoader = !coreFilter || modConfig.loader.toLowerCase() === coreFilter;
-            console.log(`Перевірка ${modConfig.version}/${modConfig.loader}:`, { matchesVersion, matchesLoader });
-            return matchesVersion && matchesLoader;
-        });
-        
-        console.log('Відфільтровані конфігурації:', configsToShow);
-    }
-    
-    // Якщо після фільтрації немає варіантів, показуємо повідомлення
-    if (configsToShow.length === 0) {
-        optionsContainer.innerHTML = `
-            <p style="color: #666; text-align: center; padding: 20px;">
-                Немає варіантів перекладу для вибраних фільтрів.<br>
-                Спробуйте змінити фільтри або виберіть інший мод.
-            </p>
-        `;
-    } else {
-        // Створюємо опції тільки для відфільтрованих варіантів
-        for (const modConfig of configsToShow) {
-            // Для кожного варіанту мода показуємо всі доступні файли перекладів
-            for (const langFile of langFiles) {
-                const optionDiv = document.createElement('div');
-                optionDiv.style.cssText = `
-                    border: 1px solid #ddd;
-                    margin: 10px 0;
-                    padding: 10px;
-                    border-radius: 4px;
-                `;
-                
-                optionDiv.innerHTML = `
-                    <p><strong>Версія:</strong> ${modConfig.version}</p>
-                    <p><strong>Ядро:</strong> ${modConfig.loader}</p>
-                    <p><strong>Автор перекладу:</strong> ${langFile.author}</p>
-                    <button onclick="downloadTranslation('${modName}', '${modConfig.version}', '${modConfig.loader}', '${langFile.author}')" 
-                            style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-                        Завантажити
-                    </button>
-                `;
-                
-                optionsContainer.appendChild(optionDiv);
-            }
-        }
-    }
-    
-    modal.appendChild(modalContent);
-    modal.className = 'modal';
-    document.body.appendChild(modal);
-}
-
-// Функція для завантаження перекладу з модального вікна
-async function downloadTranslation(modName, version, loader, author) {
-    const modData = modsData.find(m => m.name === modName);
-    if (modData) {
-        await createTranslationZip(modData, version, loader, author);
-        // Закриваємо модальне вікно
-        document.querySelector('.modal').remove();
-    }
-}
-
-// Фільтрація + пошук по назві
-function filterMods() {
-    const search = document.getElementById('search-input').value.toLowerCase();
-    const versionFilter = document.getElementById('filter-version').value.toLowerCase();
-    const coreFilter = document.getElementById('filter-core').value.toLowerCase();
-    const authorFilter = document.getElementById('filter-author').value.toLowerCase();
-
-    document.querySelectorAll('.mod-card').forEach(card => {
-        const name = card.dataset.name;
-        const versions = card.dataset.versions;
-        const loaders = card.dataset.loaders;
-        const authors = card.dataset.authors;
-        const modIndex = parseInt(card.dataset.modIndex);
-
-        // Перевіряємо чи мод має вибрану версію та ядро
-        const hasVersion = versionFilter === '' || versions.includes(versionFilter);
-        const hasLoader = coreFilter === '' || loaders.includes(coreFilter);
-        const hasAuthor = authorFilter === '' || authors.includes(authorFilter);
-        const hasName = name.includes(search);
-
-        if (hasName && hasVersion && hasLoader && hasAuthor) {
-            card.classList.remove('hidden');
-            
-            // Якщо вибрана конкретна версія або ядро, перевіряємо чи потрібно змінити кнопку
-            if (versionFilter !== '' || coreFilter !== '') {
-                const button = card.querySelector('button');
-                if (button) {
-                    const modData = modsData[modIndex];
-                    const availableTranslations = getAvailableTranslations(modData, versionFilter, coreFilter);
-                    
-                    if (availableTranslations.length === 1) {
-                        // Тільки один варіант - змінюємо кнопку на "Завантажити"
-                        button.textContent = 'Завантажити';
-                        button.onclick = () => {
-                            const translation = availableTranslations[0];
-                            createTranslationZip(modData, translation.version, translation.loader, translation.author);
-                        };
-                    } else {
-                        // Кілька варіантів - повертаємо оригінальну кнопку
-                        button.textContent = 'Вибрати переклад';
-                        button.onclick = () => showSelectModal(modData.modJson, modData.langFiles, modData.name);
+                for (const file of modContents) {
+                    if (file.name === 'mod.json') {
+                        try {
+                            const jsonResponse = await fetch(`${rawBaseUrl}/${modPath}/mod.json`);
+                            if (jsonResponse.ok) {
+                                modJson = await jsonResponse.json();
+                                if (!Array.isArray(modJson)) modJson = null;
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching mod.json for ${mod.name}:`, e);
+                        }
+                    } else if (file.name === 'mod.txt') {
+                        try {
+                            const txtResponse = await fetch(`${rawBaseUrl}/${modPath}/mod.txt`);
+                            if (txtResponse.ok) {
+                                modTxt = await txtResponse.text();
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching mod.txt for ${mod.name}:`, e);
+                        }
+                    } else if (file.name === 'image.jpeg') {
+                        imageUrl = `${rawBaseUrl}/${modPath}/image.jpeg`;
+                    } else if (file.name === 'lang' && file.type === 'dir') {
+                        const langPath = `${modPath}/lang`;
+                        const langContents = await fetchRepoContents(langPath);
+                        if (langContents && Array.isArray(langContents)) {
+                            langFiles = langContents.map(f => ({
+                                author: f.name.replace('.json', ''),
+                                url: `${rawBaseUrl}/${langPath}/${f.name}`
+                            }));
+                        }
                     }
                 }
-            }
-        } else {
-            card.classList.add('hidden');
-        }
-    });
-}
 
-loadMods().then(() => {
-    document.getElementById('search-input').addEventListener('input', filterMods);
-    document.getElementById('filter-version').addEventListener('change', filterMods);
-    document.getElementById('filter-core').addEventListener('change', filterMods);
-    document.getElementById('filter-author').addEventListener('change', filterMods);
-    
-    // Додаємо функціональність для кнопки "Об'єднати мод"
-    document.getElementById('combine-open').addEventListener('click', showCombineModal);
-});
+                if (modJson && modTxt && imageUrl) {
+                    const [name, description, modrinthLink] = modTxt.trim().split('\n');
 
-// Функція для показу модального вікна об'єднання модів
-function showCombineModal() {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    `;
-    
-    const modalContent = document.createElement('div');
-    modalContent.style.cssText = `
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        max-width: 600px;
-        max-height: 80vh;
-        overflow-y: auto;
-    `;
-    
-    modalContent.innerHTML = `
-        <h2>Об'єднати моди</h2>
-        <p>Виберіть моди для об'єднання в один ZIP файл:</p>
-        <div id="combine-options"></div>
-        <button onclick="combineSelectedMods()" style="background: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 4px; margin: 10px 5px; cursor: pointer;">
-            Об'єднати вибрані
-        </button>
-        <button onclick="this.closest('.modal').remove()" style="background: #f44336; color: white; border: none; padding: 10px 15px; border-radius: 4px; margin: 10px 5px; cursor: pointer;">
-            Закрити
-        </button>
-    `;
-    
-    const optionsContainer = modalContent.querySelector('#combine-options');
-    
-    // Показуємо тільки видимі моди
-    const visibleMods = Array.from(document.querySelectorAll('.mod-card:not(.hidden)'));
-    
-    visibleMods.forEach((card, index) => {
-        const modIndex = parseInt(card.dataset.modIndex);
-        const modData = modsData[modIndex];
-        
-        const optionDiv = document.createElement('div');
-        optionDiv.style.cssText = `
-            border: 1px solid #ddd;
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 4px;
-        `;
-        
-        optionDiv.innerHTML = `
-            <input type="checkbox" id="mod-${index}" data-mod-index="${modIndex}">
-            <label for="mod-${index}">
-                <strong>${modData.name}</strong> - ${modData.versions.join(', ')} (${modData.loaders.join(' - ')})
-            </label>
-        `;
-        
-        optionsContainer.appendChild(optionDiv);
-    });
-    
-    modal.appendChild(modalContent);
-    modal.className = 'modal';
-    document.body.appendChild(modal);
-}
+                    // Aggregate versions and loaders
+                    const allVersions = modJson.map(v => v.version).sort((a, b) => {
+                        const aParts = a.split('.').map(Number);
+                        const bParts = b.split('.').map(Number);
+                        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+                            if ((aParts[i] || 0) !== (bParts[i] || 0)) {
+                                return (aParts[i] || 0) - (bParts[i] || 0);
+                            }
+                        }
+                        return 0;
+                    });
+                    const uniqueVersions = [...new Set(allVersions)];
+                    const minVersion = uniqueVersions[0];
+                    const maxVersion = uniqueVersions[uniqueVersions.length - 1];
+                    const versionText = minVersion === maxVersion ? minVersion : `${minVersion}-${maxVersion}`;
 
-// Функція для об'єднання вибраних модів
-async function combineSelectedMods() {
-    const selectedCheckboxes = document.querySelectorAll('#combine-options input[type="checkbox"]:checked');
-    
-    if (selectedCheckboxes.length === 0) {
-        alert('Виберіть хоча б один мод для об\'єднання');
-        return;
-    }
-    
-    const zip = new JSZip();
-    const selectedMods = [];
-    
-    for (const checkbox of selectedCheckboxes) {
-        const modIndex = parseInt(checkbox.dataset.modIndex);
-        const modData = modsData[modIndex];
-        selectedMods.push(modData);
-        
-        // Додаємо mod.json для першого мода (якщо є)
-        if (modData.modJson.length > 0) {
-            zip.file(`${modData.name}/mod.json`, JSON.stringify(modData.modJson[0], null, 2));
-        }
-        
-        // Додаємо всі файли перекладів
-        for (const langFile of modData.langFiles) {
-            try {
-                const response = await fetch(langFile.url);
-                if (response.ok) {
-                    const langContent = await response.text();
-                    zip.file(`${modData.name}/lang/${langFile.author}.json`, langContent);
+                    const allLoaders = [...new Set(modJson.map(v => v.loader))].sort().join(' - ');
+
+                    const allAuthors = [...new Set(modJson.map(v => v.author.toLowerCase()))].join(' ');
+
+                    const card = document.createElement('div');
+                    card.className = 'mod-card';
+                    card.innerHTML = `
+                        <img src="${imageUrl}" alt="${name}">
+                        <h2>${name}</h2>
+                        <p>${description}</p>
+                        <p><a href="${modrinthLink}" target="_blank">Modrinth сторінка</a></p>
+                        <p>Версія: ${versionText}</p>
+                        <p>(${allLoaders})</p>
+                    `;
+                    const selectButton = document.createElement('button');
+                    selectButton.textContent = 'Вибрати переклад';
+                    selectButton.addEventListener('click', () => showSelectModal(modJson, langFiles, name));
+                    card.appendChild(selectButton);
+
+                    // Add data attributes for filtering
+                    card.dataset.versions = allVersions.join(' ').toLowerCase();
+                    card.dataset.loaders = allLoaders.toLowerCase();
+                    card.dataset.authors = allAuthors;
+
+                    modListDiv.appendChild(card);
                 }
-            } catch (e) {
-                console.error(`Error fetching lang file for ${modData.name}:`, e);
             }
         }
-    }
-    
-    // Створюємо та завантажуємо ZIP
-    const blob = await zip.generateAsync({type: 'blob'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `combined_mods_${selectedMods.map(m => m.name).join('_')}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    // Закриваємо модальне вікно
-    document.querySelector('.modal').remove();
-}
-</script>
+
+        function showSelectModal(modJson, langFiles, modName) {
+            const modal = document.getElementById('select-modal');
+            const list = document.getElementById('select-list');
+            list.innerHTML = '';
+            let hasItems = false;
+            modJson.forEach(version => {
+                const langFile = langFiles.find(l => l.author.toLowerCase() === version.author.toLowerCase());
+                if (langFile) {
+                    hasItems = true;
+                    const item = document.createElement('div');
+                    item.innerHTML = `
+                        <p>Версія: ${version.version} (${version.loader})</p>
+                        <p>Автор: ${version.author}</p>
+                    `;
+                    const downloadButton = document.createElement('button');
+                    downloadButton.textContent = 'Завантажити';
+                    downloadButton.addEventListener('click', () => downloadBoth(version.link, langFile.url, modName));
+                    item.appendChild(downloadButton);
+                    list.appendChild(item);
+                }
+            });
+            if (!hasItems) {
+                list.innerHTML = '<p>Немає доступних перекладів.</p>';
+            }
+            modal.style.display = 'block';
+        }
+
+        async function downloadBoth(jarUrl, jsonUrl, modName) {
+            // Download JAR
+            const jarFilename = jarUrl.split('/').pop();
+            const jarLink = document.createElement('a');
+            jarLink.href = jarUrl;
+            jarLink.download = jarFilename;
+            document.body.appendChild(jarLink);
+            jarLink.click();
+            document.body.removeChild(jarLink);
+
+            // Download JSON
+            try {
+                const response = await fetch(jsonUrl);
+                if (!response.ok) {
+                    throw new Error('Переклад не знайдено');
+                }
+                const blob = await response.blob();
+                const jsonLink = document.createElement('a');
+                jsonLink.href = URL.createObjectURL(blob);
+                jsonLink.download = 'uk_ua.json';
+                document.body.appendChild(jsonLink);
+                jsonLink.click();
+                document.body.removeChild(jsonLink);
+                URL.revokeObjectURL(jsonLink.href);
+            } catch (e) {
+                alert('Помилка завантаження перекладу: ' + e.message);
+            }
+        }
+
+        async function combineFiles() {
+            const modFile = document.getElementById('mod-file').files[0];
+            const jsonFile = document.getElementById('json-file').files[0];
+
+            if (!modFile || !jsonFile) {
+                alert('Будь ласка, завантажте обидва файли.');
+                return;
+            }
+
+            const zip = new JSZip();
+            const modArrayBuffer = await modFile.arrayBuffer();
+            await zip.loadAsync(modArrayBuffer);
+
+            const jsonContent = await jsonFile.text();
+
+            let modid = 'unknown';
+            const modFiles = Object.keys(zip.files);
+
+            // Check for Forge mods.toml
+            if (zip.file('META-INF/mods.toml')) {
+                const tomlContent = await zip.file('META-INF/mods.toml').async('string');
+                const modidMatch = tomlContent.match(/modId\s*=\s*"([^"]+)"/);
+                if (modidMatch) modid = modidMatch[1];
+            } else if (zip.file('fabric.mod.json')) {
+                // Fabric/Quilt
+                const jsonContent = await zip.file('fabric.mod.json').async('string');
+                const modMeta = JSON.parse(jsonContent);
+                modid = modMeta.id;
+            }
+
+            if (modid !== 'unknown') {
+                const langPath = `assets/${modid}/lang/uk_ua.json`;
+                zip.file(langPath, jsonContent);
+            } else {
+                alert('Не вдалося визначити modid. Додайте вручну.');
+                return;
+            }
+
+            const newZipBlob = await zip.generateAsync({type: 'blob'});
+            const url = URL.createObjectURL(newZipBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = modFile.name.replace('.jar', '_translated.jar');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // Modal controls
+        const combineModal = document.getElementById('combine-modal');
+        const selectModal = document.getElementById('select-modal');
+        const combineOpen = document.getElementById('combine-open');
+        const combineClose = document.querySelector('.combine-close');
+        const selectClose = document.querySelector('.select-close');
+
+        combineOpen.onclick = () => { combineModal.style.display = 'block'; };
+        combineClose.onclick = () => { combineModal.style.display = 'none'; };
+        selectClose.onclick = () => { selectModal.style.display = 'none'; };
+
+        window.onclick = (event) => {
+            if (event.target === combineModal) combineModal.style.display = 'none';
+            if (event.target === selectModal) selectModal.style.display = 'none';
+        };
+
+        // Search filter
+        function filterMods() {
+            const input = document.getElementById('search-input');
+            const filter = input.value.toLowerCase();
+            const cards = document.querySelectorAll('.mod-card');
+
+            cards.forEach(card => {
+                const versions = card.dataset.versions;
+                const loaders = card.dataset.loaders;
+                const authors = card.dataset.authors;
+
+                if (versions.includes(filter) || loaders.includes(filter) || authors.includes(filter)) {
+                    card.classList.remove('hidden');
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+        }
+
+        loadMods().then(() => {
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', filterMods);
+        });
+    </script>
 </body>
 </html>
