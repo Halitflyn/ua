@@ -94,6 +94,8 @@ async function loadMods() {
 
         if (modJson && modTxt && imageUrl) {
             const [name, description, modrinthLink] = modTxt.trim().split('\n');
+            
+            // modJson - це масив об'єктів, кожен з яких представляє окремий варіант мода
             const versionsArr = modJson.map(v => v.version);
             const loadersArr = modJson.map(v => v.loader);
             const authorsArr = modJson.map(v => v.author);
@@ -115,7 +117,7 @@ async function loadMods() {
                 versions: versionsArr,
                 loaders: uniqueLoaders,
                 authors: authorsArr,
-                modJson,
+                modJson, // Це масив об'єктів
                 langFiles,
                 imageUrl
             };
@@ -163,12 +165,13 @@ function populateFilterOptions() {
 async function createTranslationZip(modData, selectedVersion, selectedLoader, selectedAuthor) {
     const zip = new JSZip();
     
-    // Знаходимо відповідний mod.json
+    // Знаходимо відповідний mod.json з масиву об'єктів
     const modConfig = modData.modJson.find(m => 
         m.version === selectedVersion && m.loader === selectedLoader
     );
     
     if (modConfig) {
+        // Створюємо mod.json з вибраною конфігурацією
         zip.file('mod.json', JSON.stringify(modConfig, null, 2));
     }
     
@@ -202,26 +205,32 @@ async function createTranslationZip(modData, selectedVersion, selectedLoader, se
 function getAvailableTranslations(modData, versionFilter, coreFilter) {
     if (!modData) return [];
     
-    const availableVersions = versionFilter ? [versionFilter] : modData.versions;
-    const availableLoaders = coreFilter ? [coreFilter] : modData.loaders;
+    // modData.modJson - це масив об'єктів, кожен об'єкт - це окремий варіант мода
+    let availableConfigs = modData.modJson;
     
+    // Фільтруємо за версією та ядром
+    if (versionFilter) {
+        availableConfigs = availableConfigs.filter(config => 
+            config.version.toLowerCase() === versionFilter.toLowerCase()
+        );
+    }
+    
+    if (coreFilter) {
+        availableConfigs = availableConfigs.filter(config => 
+            config.loader.toLowerCase() === coreFilter.toLowerCase()
+        );
+    }
+    
+    // Створюємо список всіх можливих комбінацій
     const translations = [];
     
-    for (const version of availableVersions) {
-        for (const loader of availableLoaders) {
-            const hasModConfig = modData.modJson.some(m => 
-                m.version === version && m.loader === loader
-            );
-            
-            if (hasModConfig) {
-                for (const langFile of modData.langFiles) {
-                    translations.push({
-                        version,
-                        loader,
-                        author: langFile.author
-                    });
-                }
-            }
+    for (const modConfig of availableConfigs) {
+        for (const langFile of modData.langFiles) {
+            translations.push({
+                version: modConfig.version,
+                loader: modConfig.loader,
+                author: langFile.author
+            });
         }
     }
     
@@ -273,6 +282,7 @@ function showSelectModal(modJson, langFiles, modName) {
     
     const optionsContainer = modalContent.querySelector('#translation-options');
     
+    // modJson - це масив об'єктів, кожен об'єкт - це окремий варіант мода
     // Фільтруємо варіанти відповідно до поточних фільтрів
     let configsToShow = modJson;
     
@@ -301,6 +311,7 @@ function showSelectModal(modJson, langFiles, modName) {
     } else {
         // Створюємо опції тільки для відфільтрованих варіантів
         for (const modConfig of configsToShow) {
+            // Для кожного варіанту мода показуємо всі доступні файли перекладів
             for (const langFile of langFiles) {
                 const optionDiv = document.createElement('div');
                 optionDiv.style.cssText = `
