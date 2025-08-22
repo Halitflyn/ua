@@ -18,16 +18,24 @@
         #search-container {
             text-align: center;
             margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
         #search-input, select {
             padding: 10px;
             font-size: 16px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            margin: 0 5px 10px 0;
+            margin: 0;
         }
         #search-input {
             width: 300px;
+        }
+        select {
+            min-width: 120px;
         }
         .mod-list {
             display: flex;
@@ -261,19 +269,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
-<h1>Українські переклади модів (як Modrinth)</h1>
-<div id="search-container">
-    <input type="text" id="search-input" placeholder="Пошук по назві мода..."><br>
-    <select id="filter-version">
-        <option value="">Всі версії</option>
-    </select>
-    <select id="filter-core">
-        <option value="">Всі ядра</option>
-    </select>
-    <select id="filter-author">
-        <option value="">Всі автори</option>
-    </select>
-</div>
+    <div id="search-container">
+        <input type="text" id="search-input" placeholder="Пошук по назві мода...">
+        <select id="filter-version">
+            <option value="">Всі версії</option>
+        </select>
+        <select id="filter-core">
+            <option value="">Всі ядра</option>
+        </select>
+        <select id="filter-author">
+            <option value="">Всі автори</option>
+        </select>
+    </div>
     <button id="help-open" class="help-button">?</button>
     <button id="theme-toggle" class="theme-toggle">🌙</button>
 <button id="combine-open">Об'єднати мод</button>
