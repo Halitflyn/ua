@@ -564,14 +564,20 @@
                             if (availableTranslations.length === 1) {
                                 // Тільки один варіант - змінюємо кнопку на "Завантажити"
                                 button.textContent = 'Завантажити';
-                                button.onclick = () => {
+                                // Видаляємо всі попередні обробники подій
+                                button.replaceWith(button.cloneNode(true));
+                                const newButton = card.querySelector('button');
+                                newButton.onclick = () => {
                                     const translation = availableTranslations[0];
                                     downloadBoth(translation.version.link, translation.langFile.url, modData.name);
                                 };
                             } else {
                                 // Кілька варіантів - повертаємо оригінальну кнопку
                                 button.textContent = 'Вибрати переклад';
-                                button.onclick = () => showSelectModal(modData.modJson, modData.langFiles, modData.name);
+                                // Видаляємо всі попередні обробники подій
+                                button.replaceWith(button.cloneNode(true));
+                                const newButton = card.querySelector('button');
+                                newButton.onclick = () => showSelectModal(modData.modJson, modData.langFiles, modData.name);
                             }
                         }
                     }
