@@ -170,6 +170,9 @@
         let allVersions = new Set();
         let allCores = new Set();
         let allAuthors = new Set();
+        
+        // Зберігаємо дані про моди для подальшого використання
+        let modsData = [];
 
         async function fetchRepoContents(path) {
             const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
@@ -267,12 +270,24 @@
                     allLoadersArr.forEach(l => allCores.add(l));
                     allAuthorsArr.forEach(a => allAuthors.add(a));
 
+                    // Зберігаємо дані про мод
+                    const modData = {
+                        name,
+                        description,
+                        modrinthLink,
+                        modJson,
+                        langFiles,
+                        imageUrl
+                    };
+                    modsData.push(modData);
+
                     const card = document.createElement('div');
                     card.className = 'mod-card';
                     card.dataset.name = name.toLowerCase();
                     card.dataset.versions = allVersionsArr.join(' ').toLowerCase();
                     card.dataset.loaders = uniqueLoaders.join(' ').toLowerCase();
                     card.dataset.authors = allAuthorsArr.join(' ').toLowerCase();
+                    card.dataset.modIndex = modsData.length - 1;
                     card.innerHTML = `
                         <img src="${imageUrl}" alt="${name}">
                         <h2>${name}</h2>
@@ -475,6 +490,42 @@
             if (event.target === selectModal) selectModal.style.display = 'none';
         };
 
+        // Функція для перевірки кількості варіантів перекладу
+        function getAvailableTranslations(modJson, langFiles, versionFilter, coreFilter, authorFilter) {
+            let filteredVersions = modJson;
+            
+            if (versionFilter) {
+                filteredVersions = filteredVersions.filter(version => 
+                    version.version.toLowerCase() === versionFilter
+                );
+            }
+            
+            if (coreFilter) {
+                filteredVersions = filteredVersions.filter(version => 
+                    version.loader.toLowerCase() === coreFilter
+                );
+            }
+            
+            if (authorFilter) {
+                filteredVersions = filteredVersions.filter(version => 
+                    version.author.toLowerCase() === authorFilter
+                );
+            }
+            
+            const translations = [];
+            filteredVersions.forEach(version => {
+                const langFile = langFiles.find(l => l.author.toLowerCase() === version.author.toLowerCase());
+                if (langFile) {
+                    translations.push({
+                        version: version,
+                        langFile: langFile
+                    });
+                }
+            });
+            
+            return translations;
+        }
+
         // Фільтрація + пошук по назві
         function filterMods() {
             const search = document.getElementById('search-input').value.toLowerCase();
@@ -487,6 +538,7 @@
                 const versions = card.dataset.versions;
                 const loaders = card.dataset.loaders;
                 const authors = card.dataset.authors;
+                const modIndex = parseInt(card.dataset.modIndex);
 
                 const hasName = name.includes(search);
                 const hasVersion = versionFilter === '' || versions.includes(versionFilter);
@@ -495,6 +547,34 @@
 
                 if (hasName && hasVersion && hasLoader && hasAuthor) {
                     card.classList.remove('hidden');
+                    
+                    // Перевіряємо кількість варіантів перекладу для цього мода
+                    const button = card.querySelector('button');
+                    if (button) {
+                        const modData = modsData[modIndex];
+                        if (modData) {
+                            const availableTranslations = getAvailableTranslations(
+                                modData.modJson, 
+                                modData.langFiles, 
+                                versionFilter, 
+                                coreFilter, 
+                                authorFilter
+                            );
+                            
+                            if (availableTranslations.length === 1) {
+                                // Тільки один варіант - змінюємо кнопку на "Завантажити"
+                                button.textContent = 'Завантажити';
+                                button.onclick = () => {
+                                    const translation = availableTranslations[0];
+                                    downloadBoth(translation.version.link, translation.langFile.url, modData.name);
+                                };
+                            } else {
+                                // Кілька варіантів - повертаємо оригінальну кнопку
+                                button.textContent = 'Вибрати переклад';
+                                button.onclick = () => showSelectModal(modData.modJson, modData.langFiles, modData.name);
+                            }
+                        }
+                    }
                 } else {
                     card.classList.add('hidden');
                 }
