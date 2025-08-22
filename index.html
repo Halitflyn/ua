@@ -324,8 +324,35 @@
             const modal = document.getElementById('select-modal');
             const list = document.getElementById('select-list');
             list.innerHTML = '';
+            
+            // Отримуємо поточні фільтри
+            const versionFilter = document.getElementById('filter-version').value.toLowerCase();
+            const coreFilter = document.getElementById('filter-core').value.toLowerCase();
+            const authorFilter = document.getElementById('filter-author').value.toLowerCase();
+            
+            // Фільтруємо варіанти відповідно до вибраних фільтрів
+            let filteredVersions = modJson;
+            
+            if (versionFilter) {
+                filteredVersions = filteredVersions.filter(version => 
+                    version.version.toLowerCase() === versionFilter
+                );
+            }
+            
+            if (coreFilter) {
+                filteredVersions = filteredVersions.filter(version => 
+                    version.loader.toLowerCase() === coreFilter
+                );
+            }
+            
+            if (authorFilter) {
+                filteredVersions = filteredVersions.filter(version => 
+                    version.author.toLowerCase() === authorFilter
+                );
+            }
+            
             let hasItems = false;
-            modJson.forEach(version => {
+            filteredVersions.forEach(version => {
                 const langFile = langFiles.find(l => l.author.toLowerCase() === version.author.toLowerCase());
                 if (langFile) {
                     hasItems = true;
@@ -341,9 +368,16 @@
                     list.appendChild(item);
                 }
             });
+            
             if (!hasItems) {
-                list.innerHTML = '<p>Немає доступних перекладів.</p>';
+                let message = 'Немає доступних перекладів';
+                if (versionFilter || coreFilter || authorFilter) {
+                    message += ' для вибраних фільтрів';
+                }
+                message += '.';
+                list.innerHTML = `<p>${message}</p>`;
             }
+            
             modal.style.display = 'block';
         }
 
