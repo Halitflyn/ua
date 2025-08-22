@@ -230,6 +230,10 @@ function getAvailableTranslations(modData, versionFilter, coreFilter) {
 
 // Функція для показу модального вікна вибору перекладу
 function showSelectModal(modJson, langFiles, modName) {
+    // Отримуємо поточні фільтри
+    const versionFilter = document.getElementById('filter-version').value.toLowerCase();
+    const coreFilter = document.getElementById('filter-core').value.toLowerCase();
+    
     // Створюємо модальне вікно
     const modal = document.createElement('div');
     modal.style.cssText = `
@@ -263,8 +267,18 @@ function showSelectModal(modJson, langFiles, modName) {
     
     const optionsContainer = modalContent.querySelector('#translation-options');
     
-    // Створюємо опції для кожного варіанту
-    for (const modConfig of modJson) {
+    // Фільтруємо варіанти відповідно до поточних фільтрів
+    const filteredModConfigs = modJson.filter(modConfig => {
+        const matchesVersion = versionFilter === '' || modConfig.version.toLowerCase() === versionFilter;
+        const matchesLoader = coreFilter === '' || modConfig.loader.toLowerCase() === coreFilter;
+        return matchesVersion && matchesLoader;
+    });
+    
+    // Якщо немає відфільтрованих варіантів, показуємо всі
+    const configsToShow = filteredModConfigs.length > 0 ? filteredModConfigs : modJson;
+    
+    // Створюємо опції тільки для відфільтрованих варіантів
+    for (const modConfig of configsToShow) {
         for (const langFile of langFiles) {
             const optionDiv = document.createElement('div');
             optionDiv.style.cssText = `
@@ -358,7 +372,131 @@ loadMods().then(() => {
     document.getElementById('filter-version').addEventListener('change', filterMods);
     document.getElementById('filter-core').addEventListener('change', filterMods);
     document.getElementById('filter-author').addEventListener('change', filterMods);
+    
+    // Додаємо функціональність для кнопки "Об'єднати мод"
+    document.getElementById('combine-open').addEventListener('click', showCombineModal);
 });
+
+// Функція для показу модального вікна об'єднання модів
+function showCombineModal() {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    `;
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+    `;
+    
+    modalContent.innerHTML = `
+        <h2>Об'єднати моди</h2>
+        <p>Виберіть моди для об'єднання в один ZIP файл:</p>
+        <div id="combine-options"></div>
+        <button onclick="combineSelectedMods()" style="background: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 4px; margin: 10px 5px; cursor: pointer;">
+            Об'єднати вибрані
+        </button>
+        <button onclick="this.closest('.modal').remove()" style="background: #f44336; color: white; border: none; padding: 10px 15px; border-radius: 4px; margin: 10px 5px; cursor: pointer;">
+            Закрити
+        </button>
+    `;
+    
+    const optionsContainer = modalContent.querySelector('#combine-options');
+    
+    // Показуємо тільки видимі моди
+    const visibleMods = Array.from(document.querySelectorAll('.mod-card:not(.hidden)'));
+    
+    visibleMods.forEach((card, index) => {
+        const modIndex = parseInt(card.dataset.modIndex);
+        const modData = modsData[modIndex];
+        
+        const optionDiv = document.createElement('div');
+        optionDiv.style.cssText = `
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        `;
+        
+        optionDiv.innerHTML = `
+            <input type="checkbox" id="mod-${index}" data-mod-index="${modIndex}">
+            <label for="mod-${index}">
+                <strong>${modData.name}</strong> - ${modData.versions.join(', ')} (${modData.loaders.join(' - ')})
+            </label>
+        `;
+        
+        optionsContainer.appendChild(optionDiv);
+    });
+    
+    modal.appendChild(modalContent);
+    modal.className = 'modal';
+    document.body.appendChild(modal);
+}
+
+// Функція для об'єднання вибраних модів
+async function combineSelectedMods() {
+    const selectedCheckboxes = document.querySelectorAll('#combine-options input[type="checkbox"]:checked');
+    
+    if (selectedCheckboxes.length === 0) {
+        alert('Виберіть хоча б один мод для об\'єднання');
+        return;
+    }
+    
+    const zip = new JSZip();
+    const selectedMods = [];
+    
+    for (const checkbox of selectedCheckboxes) {
+        const modIndex = parseInt(checkbox.dataset.modIndex);
+        const modData = modsData[modIndex];
+        selectedMods.push(modData);
+        
+        // Додаємо mod.json для першого мода (якщо є)
+        if (modData.modJson.length > 0) {
+            zip.file(`${modData.name}/mod.json`, JSON.stringify(modData.modJson[0], null, 2));
+        }
+        
+        // Додаємо всі файли перекладів
+        for (const langFile of modData.langFiles) {
+            try {
+                const response = await fetch(langFile.url);
+                if (response.ok) {
+                    const langContent = await response.text();
+                    zip.file(`${modData.name}/lang/${langFile.author}.json`, langContent);
+                }
+            } catch (e) {
+                console.error(`Error fetching lang file for ${modData.name}:`, e);
+            }
+        }
+    }
+    
+    // Створюємо та завантажуємо ZIP
+    const blob = await zip.generateAsync({type: 'blob'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `combined_mods_${selectedMods.map(m => m.name).join('_')}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Закриваємо модальне вікно
+    document.querySelector('.modal').remove();
+}
 </script>
 </body>
 </html>
