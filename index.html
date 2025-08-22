@@ -259,8 +259,14 @@ function showSelectModal(modJson, langFiles, modName) {
         overflow-y: auto;
     `;
     
+    // Додаємо інформацію про фільтри
+    const filterInfo = [];
+    if (versionFilter) filterInfo.push(`Версія: ${versionFilter}`);
+    if (coreFilter) filterInfo.push(`Ядро: ${coreFilter}`);
+    const filterText = filterInfo.length > 0 ? ` (Фільтр: ${filterInfo.join(', ')})` : '';
+    
     modalContent.innerHTML = `
-        <h2>Виберіть варіант перекладу для ${modName}</h2>
+        <h2>Виберіть варіант перекладу для ${modName}${filterText}</h2>
         <div id="translation-options"></div>
         <button onclick="this.closest('.modal').remove()" style="margin-top: 10px;">Закрити</button>
     `;
@@ -268,37 +274,54 @@ function showSelectModal(modJson, langFiles, modName) {
     const optionsContainer = modalContent.querySelector('#translation-options');
     
     // Фільтруємо варіанти відповідно до поточних фільтрів
-    const filteredModConfigs = modJson.filter(modConfig => {
-        const matchesVersion = versionFilter === '' || modConfig.version.toLowerCase() === versionFilter;
-        const matchesLoader = coreFilter === '' || modConfig.loader.toLowerCase() === coreFilter;
-        return matchesVersion && matchesLoader;
-    });
+    let configsToShow = modJson;
     
-    // Якщо немає відфільтрованих варіантів, показуємо всі
-    const configsToShow = filteredModConfigs.length > 0 ? filteredModConfigs : modJson;
+    if (versionFilter || coreFilter) {
+        console.log('Фільтри активні:', { versionFilter, coreFilter });
+        console.log('Всі конфігурації:', modJson);
+        
+        configsToShow = modJson.filter(modConfig => {
+            const matchesVersion = !versionFilter || modConfig.version.toLowerCase() === versionFilter;
+            const matchesLoader = !coreFilter || modConfig.loader.toLowerCase() === coreFilter;
+            console.log(`Перевірка ${modConfig.version}/${modConfig.loader}:`, { matchesVersion, matchesLoader });
+            return matchesVersion && matchesLoader;
+        });
+        
+        console.log('Відфільтровані конфігурації:', configsToShow);
+    }
     
-    // Створюємо опції тільки для відфільтрованих варіантів
-    for (const modConfig of configsToShow) {
-        for (const langFile of langFiles) {
-            const optionDiv = document.createElement('div');
-            optionDiv.style.cssText = `
-                border: 1px solid #ddd;
-                margin: 10px 0;
-                padding: 10px;
-                border-radius: 4px;
-            `;
-            
-            optionDiv.innerHTML = `
-                <p><strong>Версія:</strong> ${modConfig.version}</p>
-                <p><strong>Ядро:</strong> ${modConfig.loader}</p>
-                <p><strong>Автор перекладу:</strong> ${langFile.author}</p>
-                <button onclick="downloadTranslation('${modName}', '${modConfig.version}', '${modConfig.loader}', '${langFile.author}')" 
-                        style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-                    Завантажити
-                </button>
-            `;
-            
-            optionsContainer.appendChild(optionDiv);
+    // Якщо після фільтрації немає варіантів, показуємо повідомлення
+    if (configsToShow.length === 0) {
+        optionsContainer.innerHTML = `
+            <p style="color: #666; text-align: center; padding: 20px;">
+                Немає варіантів перекладу для вибраних фільтрів.<br>
+                Спробуйте змінити фільтри або виберіть інший мод.
+            </p>
+        `;
+    } else {
+        // Створюємо опції тільки для відфільтрованих варіантів
+        for (const modConfig of configsToShow) {
+            for (const langFile of langFiles) {
+                const optionDiv = document.createElement('div');
+                optionDiv.style.cssText = `
+                    border: 1px solid #ddd;
+                    margin: 10px 0;
+                    padding: 10px;
+                    border-radius: 4px;
+                `;
+                
+                optionDiv.innerHTML = `
+                    <p><strong>Версія:</strong> ${modConfig.version}</p>
+                    <p><strong>Ядро:</strong> ${modConfig.loader}</p>
+                    <p><strong>Автор перекладу:</strong> ${langFile.author}</p>
+                    <button onclick="downloadTranslation('${modName}', '${modConfig.version}', '${modConfig.loader}', '${langFile.author}')" 
+                            style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                        Завантажити
+                    </button>
+                `;
+                
+                optionsContainer.appendChild(optionDiv);
+            }
         }
     }
     
