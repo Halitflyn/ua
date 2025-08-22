@@ -19,12 +19,15 @@
             text-align: center;
             margin-bottom: 20px;
         }
-        #search-input {
+        #search-input, select {
             padding: 10px;
-            width: 300px;
             font-size: 16px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            margin: 0 5px 10px 0;
+        }
+        #search-input {
+            width: 300px;
         }
         .mod-list {
             display: flex;
@@ -124,7 +127,16 @@
 <body>
     <h1>Українські переклади модів (як Modrinth)</h1>
     <div id="search-container">
-        <input type="text" id="search-input" placeholder="Пошук по версії, ядру або автору...">
+        <input type="text" id="search-input" placeholder="Пошук по назві мода..."><br>
+        <select id="filter-version">
+            <option value="">Всі версії</option>
+        </select>
+        <select id="filter-core">
+            <option value="">Всі ядра</option>
+        </select>
+        <select id="filter-author">
+            <option value="">Всі автори</option>
+        </select>
     </div>
     <button id="combine-open">Об'єднати мод</button>
     <div id="mod-list" class="mod-list"></div>
@@ -153,6 +165,11 @@
         const repoName = 'ua';
         const basePath = 'mods';
         const rawBaseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main`;
+
+        // Масиви для фільтрів
+        let allVersions = new Set();
+        let allCores = new Set();
+        let allAuthors = new Set();
 
         async function fetchRepoContents(path) {
             const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${path}`;
@@ -224,7 +241,7 @@
                     const [name, description, modrinthLink] = modTxt.trim().split('\n');
 
                     // Aggregate versions and loaders
-                    const allVersions = modJson.map(v => v.version).sort((a, b) => {
+                    const allVersionsArr = modJson.map(v => v.version).sort((a, b) => {
                         const aParts = a.split('.').map(Number);
                         const bParts = b.split('.').map(Number);
                         for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
@@ -234,38 +251,73 @@
                         }
                         return 0;
                     });
-                    const uniqueVersions = [...new Set(allVersions)];
+                    const uniqueVersions = [...new Set(allVersionsArr)];
                     const minVersion = uniqueVersions[0];
                     const maxVersion = uniqueVersions[uniqueVersions.length - 1];
                     const versionText = minVersion === maxVersion ? minVersion : `${minVersion}-${maxVersion}`;
 
-                    const allLoaders = [...new Set(modJson.map(v => v.loader))].sort().join(' - ');
+                    const allLoadersArr = modJson.map(v => v.loader);
+                    const uniqueLoaders = [...new Set(allLoadersArr)];
+                    const loadersDisplay = uniqueLoaders.join(' - ');
 
-                    const allAuthors = [...new Set(modJson.map(v => v.author.toLowerCase()))].join(' ');
+                    const allAuthorsArr = modJson.map(v => v.author);
+
+                    // Додати у множини для фільтрів
+                    allVersionsArr.forEach(v => allVersions.add(v));
+                    allLoadersArr.forEach(l => allCores.add(l));
+                    allAuthorsArr.forEach(a => allAuthors.add(a));
 
                     const card = document.createElement('div');
                     card.className = 'mod-card';
+                    card.dataset.name = name.toLowerCase();
+                    card.dataset.versions = allVersionsArr.join(' ').toLowerCase();
+                    card.dataset.loaders = uniqueLoaders.join(' ').toLowerCase();
+                    card.dataset.authors = allAuthorsArr.join(' ').toLowerCase();
                     card.innerHTML = `
                         <img src="${imageUrl}" alt="${name}">
                         <h2>${name}</h2>
                         <p>${description}</p>
                         <p><a href="${modrinthLink}" target="_blank">Modrinth сторінка</a></p>
                         <p>Версія: ${versionText}</p>
-                        <p>(${allLoaders})</p>
+                        <p>(${loadersDisplay})</p>
                     `;
                     const selectButton = document.createElement('button');
                     selectButton.textContent = 'Вибрати переклад';
                     selectButton.addEventListener('click', () => showSelectModal(modJson, langFiles, name));
                     card.appendChild(selectButton);
 
-                    // Add data attributes for filtering
-                    card.dataset.versions = allVersions.join(' ').toLowerCase();
-                    card.dataset.loaders = allLoaders.toLowerCase();
-                    card.dataset.authors = allAuthors;
-
                     modListDiv.appendChild(card);
                 }
             }
+
+            // Заповнити фільтри
+            populateFilterOptions();
+        }
+
+        // Заповнити фільтри
+        function populateFilterOptions() {
+            const vSelect = document.getElementById('filter-version');
+            const cSelect = document.getElementById('filter-core');
+            const aSelect = document.getElementById('filter-author');
+
+            [...allVersions].sort().forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v;
+                opt.textContent = v;
+                vSelect.appendChild(opt);
+            });
+            [...allCores].sort().forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                cSelect.appendChild(opt);
+            });
+            [...allAuthors].sort().forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a;
+                opt.textContent = a;
+                aSelect.appendChild(opt);
+            });
         }
 
         function showSelectModal(modJson, langFiles, modName) {
@@ -389,18 +441,25 @@
             if (event.target === selectModal) selectModal.style.display = 'none';
         };
 
-        // Search filter
+        // Фільтрація + пошук по назві
         function filterMods() {
-            const input = document.getElementById('search-input');
-            const filter = input.value.toLowerCase();
-            const cards = document.querySelectorAll('.mod-card');
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const versionFilter = document.getElementById('filter-version').value.toLowerCase();
+            const coreFilter = document.getElementById('filter-core').value.toLowerCase();
+            const authorFilter = document.getElementById('filter-author').value.toLowerCase();
 
-            cards.forEach(card => {
+            document.querySelectorAll('.mod-card').forEach(card => {
+                const name = card.dataset.name;
                 const versions = card.dataset.versions;
                 const loaders = card.dataset.loaders;
                 const authors = card.dataset.authors;
 
-                if (versions.includes(filter) || loaders.includes(filter) || authors.includes(filter)) {
+                const hasName = name.includes(search);
+                const hasVersion = versionFilter === '' || versions.includes(versionFilter);
+                const hasLoader = coreFilter === '' || loaders.includes(coreFilter);
+                const hasAuthor = authorFilter === '' || authors.includes(authorFilter);
+
+                if (hasName && hasVersion && hasLoader && hasAuthor) {
                     card.classList.remove('hidden');
                 } else {
                     card.classList.add('hidden');
@@ -409,8 +468,10 @@
         }
 
         loadMods().then(() => {
-            const searchInput = document.getElementById('search-input');
-            searchInput.addEventListener('input', filterMods);
+            document.getElementById('search-input').addEventListener('input', filterMods);
+            document.getElementById('filter-version').addEventListener('change', filterMods);
+            document.getElementById('filter-core').addEventListener('change', filterMods);
+            document.getElementById('filter-author').addEventListener('change', filterMods);
         });
     </script>
 </body>
