@@ -1,0 +1,3 @@
+DungeonsandTaverns
+Пакет даних про структури, що додає підземелля, таверни та інші споруди, які можна знайти під час дослідження світу.
+https://modrinth.com/datapack/dungeons-and-taverns
