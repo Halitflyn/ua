@@ -1,3 +1,0 @@
-Balm
-Шар абстракції для мультиплатформних модів
-https://modrinth.com/mod/balm
