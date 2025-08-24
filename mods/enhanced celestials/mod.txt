@@ -1,0 +1,3 @@
+EnhancedCelestials
+Мод, що додає нові місячні події, такі як криваві місяці та врожайні місяці!
+https://modrinth.com/mod/enhanced-celestials

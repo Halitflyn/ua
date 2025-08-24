@@ -1,0 +1,3 @@
+CaelusApi
+Coremod та API, що надають розробникам доступ до механіки польоту елітри через атрибут сутності.
+https://modrinth.com/mod/caelus
