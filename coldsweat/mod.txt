@@ -1,3 +1,0 @@
-ColdSweat
-Додає до Minecraft відповідну та складну температурну систему, та багато іншого!
-https://modrinth.com/mod/cold-sweat
